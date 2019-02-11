@@ -10,7 +10,11 @@ int fib(int n) {
     return fib_help(n, 0, 1);
 }
 
+void println() {
+}
+
 // Driver Code
 int main() {
+    println();
     return fib(10, 0, 1);
 }

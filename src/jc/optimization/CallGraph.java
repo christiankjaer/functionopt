@@ -1,57 +1,106 @@
 package jc.optimization;
 
 import petter.cfg.*;
+import petter.cfg.edges.Assignment;
 import petter.cfg.edges.ProcedureCall;
+import petter.cfg.edges.Transition;
+import petter.cfg.expression.*;
+import petter.cfg.expression.visitors.DefaultUpDownDFS;
 
 import java.io.File;
+import java.util.*;
+import java.util.stream.Stream;
 
-public class ReachabilityAnalysis extends AbstractPropagatingVisitor<Boolean> {
-
-    static Boolean lub(Boolean b1, Boolean b2) {
-        if (b1 == null) return b2;
-        if (b2 == null) return b1;
-        return b1 || b2;
-    }
-
-    static boolean leq(Boolean b1, Boolean b2) {
-        if (b1 == null) return true;
-        if (b2 == null) return false;
-        return !b1 || b2;
-    }
-
-    CompilationUnit cu;
-
-    public ReachabilityAnalysis(CompilationUnit cu) {
-        super(true);
-        this.cu = cu;
+// Collects function calls from an expression.
+class CallCollector extends DefaultUpDownDFS<Set<FunctionCall>> {
+    @Override
+    public Set<FunctionCall> postVisit(FunctionCall m, Set<FunctionCall> s, Stream<Set<FunctionCall>> it) {
+        Set<FunctionCall> result = new HashSet<>();
+        result.add(m);
+        result.addAll(s);
+        it.forEach(result::addAll);
+        return result;
     }
 
     @Override
-    public Boolean visit(ProcedureCall ae, Boolean d) {
-        enter(cu.getProcedure(ae.getCallExpression().getName()), true);
-        return d;
+    public Set<FunctionCall> postVisit(BinaryExpression s, Set<FunctionCall> lhs, Set<FunctionCall> rhs) {
+        Set<FunctionCall> result = new HashSet<>();
+        result.addAll(lhs);
+        result.addAll(rhs);
+        return result;
+    }
+}
+
+public class CallGraph {
+
+    static class Node {
+        public int staticCalls;
+        public Procedure procedure;
+        public Set<Node> calls;
     }
 
-    public Boolean visit(State s, Boolean newflow) {
-        Boolean oldFlow = dataflowOf(s);
-        if (!leq(newflow, oldFlow)) {
-            Boolean newVal = lub(oldFlow, newflow);
-            dataflowOf(s, newVal);
-            return newVal;
+    Map<Procedure, Node> nodes;
+
+    public CallGraph(CompilationUnit cu) {
+        nodes = new HashMap<>();
+
+        for (Procedure p : cu) {
+            Node n = new Node();
+            n.procedure = p;
+            n.staticCalls = 0;
+            n.calls = new HashSet<>();
+            nodes.put(p, n);
         }
-        return null;
+        for (Procedure p : cu) {
+            Node n = nodes.get(p);
+            for (Transition t : p.getTransitions()) {
+                if (t instanceof Assignment) {
+                    Assignment a = (Assignment)t;
+
+                    CallCollector cc = new CallCollector();
+                    Set<FunctionCall> fc = a.getRhs().accept(cc, Collections.emptySet()).orElse(Collections.emptySet());
+
+                    for (FunctionCall call : fc) {
+                        nodes.forEach((proc, node) -> {
+                            // First-order approximation
+                            // TODO: Should also check arity.
+                            if (call.getName().equals(proc.getName())) {
+                                node.staticCalls++;
+                                n.calls.add(node);
+                            }
+                        });
+                    }
+                }
+
+                if (t instanceof ProcedureCall) {
+                    ProcedureCall pc = (ProcedureCall)t;
+                    nodes.forEach((proc, node) -> {
+                        // First-order approximation
+                        // TODO: Should also check arity.
+                        if (pc.getCallExpression().getName().equals(proc.getName())) {
+                            node.staticCalls++;
+                            n.calls.add(node);
+                        }
+                    });
+                }
+
+            }
+        }
     }
+
 
     public static void main(String[] args) throws Exception {
         CompilationUnit cu = petter.simplec.Compiler.parse(new File("input.c"));
-        ReachabilityAnalysis ra = new ReachabilityAnalysis(cu);
-        Procedure foo = cu.getProcedure("main");
-        DotLayout layout = new DotLayout("png", "main.png");
-        ra.enter(foo, true);
-        ra.fullAnalysis();
-        for (State s : foo.getStates()) {
-            layout.highlight(s, ra.dataflowOf(s).toString());
-        }
+
+        CallGraph cg = new CallGraph(cu);
+
+        cg.nodes.forEach((p, n) -> {
+            System.out.print(p.getName() + " called " + n.staticCalls + " time(s) and calls \n\t");
+            n.calls.forEach(nb -> {
+                System.out.print(nb.procedure.getName() + ", ");
+            });
+            System.out.println();
+        });
 
     }
 }

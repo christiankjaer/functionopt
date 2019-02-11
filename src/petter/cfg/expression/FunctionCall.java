@@ -8,6 +8,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import petter.cfg.expression.types.Type;
 /**
@@ -148,12 +149,12 @@ public class FunctionCall implements Expression, java.io.Serializable{
     public <up, down> Optional<up> accept(PropagatingDFS<up, down> v, down parentValue) {
         return v.preVisit(this, parentValue)
                 .flatMap(curr ->{
-                    Stream<Optional<up>> abstractParams =
+                    List<Optional<up>> abstractParams =
                             params.stream().
-                                    map(param->param.accept(v, curr));
-                    if(abstractParams.anyMatch(Optional.empty()::equals)) return Optional.empty();
+                                    map(param->param.accept(v, curr)).collect(Collectors.toList());
+                    if(abstractParams.stream().anyMatch(Optional.empty()::equals)) return Optional.empty();
                     else {
-                        return Optional.of(v.postVisit(this,curr,abstractParams.map(o->o.get())));
+                        return Optional.of(v.postVisit(this,curr,abstractParams.stream().map(o->o.get())));
                     }
                 }
                 );
