@@ -10,11 +10,12 @@ int fib(int n) {
     return fib_help(n, 0, 1);
 }
 
-void println() {
+int f(int x, int y) {
+    return x + y;
 }
 
 // Driver Code
 int main() {
-    println();
-    return fib(10, 0, 1);
+    int x = fib(fib(f(5, 6)));
+    return x;
 }

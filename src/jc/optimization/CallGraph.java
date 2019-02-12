@@ -2,34 +2,13 @@ package jc.optimization;
 
 import petter.cfg.*;
 import petter.cfg.edges.Assignment;
+import petter.cfg.edges.GuardedTransition;
 import petter.cfg.edges.ProcedureCall;
 import petter.cfg.edges.Transition;
 import petter.cfg.expression.*;
-import petter.cfg.expression.visitors.DefaultUpDownDFS;
 
 import java.io.File;
 import java.util.*;
-import java.util.stream.Stream;
-
-// Collects function calls from an expression.
-class CallCollector extends DefaultUpDownDFS<Set<FunctionCall>> {
-    @Override
-    public Set<FunctionCall> postVisit(FunctionCall m, Set<FunctionCall> s, Stream<Set<FunctionCall>> it) {
-        Set<FunctionCall> result = new HashSet<>();
-        result.add(m);
-        result.addAll(s);
-        it.forEach(result::addAll);
-        return result;
-    }
-
-    @Override
-    public Set<FunctionCall> postVisit(BinaryExpression s, Set<FunctionCall> lhs, Set<FunctionCall> rhs) {
-        Set<FunctionCall> result = new HashSet<>();
-        result.addAll(lhs);
-        result.addAll(rhs);
-        return result;
-    }
-}
 
 public class CallGraph {
 
@@ -37,9 +16,45 @@ public class CallGraph {
         public int staticCalls;
         public Procedure procedure;
         public Set<Node> calls;
+
+        public boolean isLeaf() {
+            return calls.isEmpty();
+        }
     }
 
     Map<Procedure, Node> nodes;
+
+    public String toDot() {
+        StringBuilder b = new StringBuilder();
+        b.append("digraph CallGraph {\n");
+
+        nodes.forEach((p, n) ->
+                n.calls.forEach(target ->
+                        b.append(p.getName() + " -> " + target.procedure.getName() + ";\n")));
+
+        b.append("}\n");
+        return b.toString();
+    }
+
+    private void addCallFrom(FunctionCall call, Procedure p) {
+        Node n = nodes.get(p);
+        nodes.forEach((proc, node) -> {
+            // First-order approximation
+            // TODO: Should also check arity.
+            if (call.getName().equals(proc.getName())) {
+                node.staticCalls++;
+                n.calls.add(node);
+            }
+        });
+    }
+
+    private void addCallFrom(Expression e, Procedure p) {
+        CallCollector cc = new CallCollector();
+        Set<FunctionCall> fc = e.accept(cc, Collections.emptySet()).orElse(Collections.emptySet());
+        for (FunctionCall call : fc) {
+            addCallFrom(call, p);
+        }
+    }
 
     public CallGraph(CompilationUnit cu) {
         nodes = new HashMap<>();
@@ -52,38 +67,21 @@ public class CallGraph {
             nodes.put(p, n);
         }
         for (Procedure p : cu) {
-            Node n = nodes.get(p);
             for (Transition t : p.getTransitions()) {
+                if (t instanceof GuardedTransition) {
+                    GuardedTransition gt = (GuardedTransition)t;
+                    addCallFrom(gt.getAssertion(), p);
+                }
                 if (t instanceof Assignment) {
                     Assignment a = (Assignment)t;
-
-                    CallCollector cc = new CallCollector();
-                    Set<FunctionCall> fc = a.getRhs().accept(cc, Collections.emptySet()).orElse(Collections.emptySet());
-
-                    for (FunctionCall call : fc) {
-                        nodes.forEach((proc, node) -> {
-                            // First-order approximation
-                            // TODO: Should also check arity.
-                            if (call.getName().equals(proc.getName())) {
-                                node.staticCalls++;
-                                n.calls.add(node);
-                            }
-                        });
-                    }
+                    addCallFrom(a.getLhs(), p);
+                    addCallFrom(a.getRhs(), p);
                 }
 
                 if (t instanceof ProcedureCall) {
                     ProcedureCall pc = (ProcedureCall)t;
-                    nodes.forEach((proc, node) -> {
-                        // First-order approximation
-                        // TODO: Should also check arity.
-                        if (pc.getCallExpression().getName().equals(proc.getName())) {
-                            node.staticCalls++;
-                            n.calls.add(node);
-                        }
-                    });
+                    addCallFrom(pc.getCallExpression(), p);
                 }
-
             }
         }
     }
@@ -94,13 +92,7 @@ public class CallGraph {
 
         CallGraph cg = new CallGraph(cu);
 
-        cg.nodes.forEach((p, n) -> {
-            System.out.print(p.getName() + " called " + n.staticCalls + " time(s) and calls \n\t");
-            n.calls.forEach(nb -> {
-                System.out.print(nb.procedure.getName() + ", ");
-            });
-            System.out.println();
-        });
+        System.out.println(cg.toDot());
 
     }
 }
