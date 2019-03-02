@@ -76,17 +76,19 @@ public class Optimization {
 
         State callEnd = assignment.getDest();
 
-        List<Transition> incoming = StreamSupport.stream(callEnd.getIn().spliterator(), false).collect(Collectors.toList());
+        List<Transition> incomings = StreamSupport.stream(callEnd.getIn().spliterator(), false).collect(Collectors.toList());
 
-        List<State> predecessors = incoming.stream().map(Transition::getSource).collect(Collectors.toList());
+        assert incomings.size() == 1;
 
-        assert predecessors.size() == 1;
+        Transition incoming = incomings.get(0);
 
-        incoming.forEach(Transition::removeEdge);
+        State newCallEnd = new State();
+
+        incoming.setDest(newCallEnd);
 
         Expression returnedVariable = new Variable(1001, variablePrefix + "return", assignment.getRhs().getType());
 
-        new Assignment(predecessors.get(0), callEnd, assignment.getLhs(), returnedVariable);
+        new Assignment(newCallEnd, callEnd, assignment.getLhs(), returnedVariable);
 
         caller.refreshStates();
 
@@ -159,7 +161,7 @@ public class Optimization {
     }
 
     public static void main(String[] args) throws Exception {
-        CompilationUnit compilationUnit = Compiler.parse(new File("examples/procedure.c"));
+        CompilationUnit compilationUnit = Compiler.parse(new File("examples/function.c"));
 
         Optimization optimization = new Optimization(compilationUnit);
 
