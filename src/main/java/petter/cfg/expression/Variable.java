@@ -77,6 +77,13 @@ public class Variable implements Expression, Annotatable, java.io.Serializable{
     public int hashCode(){
       return (new Integer(id)).hashCode();
     }
+    public String getName(){
+        String name = (String) getAnnotation("external name");
+        return name == null ? "" : name;
+    }
+    public void setName(String externalname){
+        putAnnotation("external name", externalname);
+    }
     /**
      * check if two variables are equal
      * @return guess what?

@@ -1,15 +1,8 @@
 package jc.optimization;
 
-import petter.cfg.CompilationUnit;
-import petter.cfg.DotLayout;
-import petter.cfg.Procedure;
-import petter.cfg.State;
-import petter.cfg.edges.Assignment;
-import petter.cfg.edges.Nop;
-import petter.cfg.edges.ProcedureCall;
-import petter.cfg.edges.Transition;
+import petter.cfg.*;
+import petter.cfg.edges.*;
 import petter.cfg.expression.FunctionCall;
-import petter.cfg.expression.visitors.Substitution;
 
 import java.io.File;
 import java.util.Set;
@@ -68,7 +61,8 @@ public class Optimization {
     }
 
     private void inlineAssignment(Assignment assignment, FunctionCall call, Procedure caller, Procedure callee) {
-        drawGraph(caller);
+        drawGraph(caller, "caller");
+        drawGraph(callee, "callee");
 
         State callBegin = assignment.getSource();
         State callEnd = assignment.getDest();
@@ -80,11 +74,12 @@ public class Optimization {
         // todo: rename callee's local variables in caller
         // todo: use renamed callee result instead of the original expression
 
-        drawGraph(caller);
+        drawGraph(caller, "caller_inlined");
     }
 
     private void inlineProcedure(ProcedureCall call, Procedure caller, Procedure callee) {
-        drawGraph(caller);
+        drawGraph(caller, "caller");
+        drawGraph(callee, "callee");
 
         State callBegin = call.getSource();
         State callEnd = call.getDest();
@@ -92,21 +87,27 @@ public class Optimization {
         State calleeEnter = callee.getBegin();
         State calleeExit = callee.getEnd();
 
-        // todo: rename callee's local variables in caller
+        StringGenerator generator = new StringGenerator();
+        String prefix = "__in_" + generator.generate(6) + "_";
 
-        // replace call with jumps
+        // todo: copy arguments
+
+        RenamingVisitor visitor = new RenamingVisitor(prefix);
+        calleeEnter.forwardAccept(visitor, true);
+        visitor.fullAnalysis();
+
         call.removeEdge();
         new Nop(callBegin, calleeEnter);
         new Nop(calleeExit, callEnd);
 
         caller.refreshStates();
 
-        drawGraph(caller);
+        drawGraph(caller, "caller_inlined");
     }
 
-    private static void drawGraph(Procedure procedure) {
+    private static void drawGraph(Procedure procedure, String name) {
         try {
-            new DotLayout("png", "after.png").callDot(procedure);
+            new DotLayout("png", name + ".png").callDot(procedure);
         } catch (Exception e) {
             System.err.println("Could not create dot file.");
         }
