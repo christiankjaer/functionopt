@@ -14,67 +14,69 @@ import java.util.stream.Collectors;
 
 public class Optimization {
 
-    CompilationUnit cu;
-    CallGraph cg;
+    CompilationUnit compilationUnit;
 
-    public Optimization(CompilationUnit cu) {
-        this.cu = cu;
-        this.cg = new CallGraph(cu);
-    }
+    CallGraph callGraph;
 
-    public void inlineFunction(FunctionCall fc, Procedure p) {
-        System.out.println("inlining function call " + fc.toString());
-    }
+    public Optimization(CompilationUnit compilationUnit) {
+        this.compilationUnit = compilationUnit;
 
-    public void inlineProcedure(ProcedureCall pc, Procedure p) {
-        System.out.println("inlining procedure call " + pc.toString());
+        this.callGraph = new CallGraph(compilationUnit);
     }
 
     public void inline() {
+        for (Procedure procedure : compilationUnit) {
+            Set<Procedure> calledLeafProcedures = callGraph
+                    .getNode(procedure)
+                    .getCallees()
+                    .stream()
+                    .filter(CallGraph.Node::isLeaf)
+                    .map(CallGraph.Node::getProcedure)
+                    .collect(Collectors.toSet());
 
-        for (Procedure p : cu) {
+            for (Transition transition : procedure.getTransitions()) {
+                if (transition instanceof Assignment) {
+                    Assignment assignment = (Assignment) transition;
 
-            Set<Procedure> inlineCandidates = cg.nodes.get(p).calls.stream()
-                    .filter(CallGraph.Node::isLeaf).map(n -> n.procedure).collect(Collectors.toSet());
+                    if (assignment.getRhs() instanceof FunctionCall) {
+                        FunctionCall call = ((FunctionCall) assignment.getRhs());
 
-            for (Transition t : p.getTransitions()) {
-                if (t instanceof Assignment) {
-                    Assignment a = (Assignment) t;
-
-                    if (a.getRhs() instanceof FunctionCall) {
-                        FunctionCall fc = ((FunctionCall)a.getRhs());
-                        for (Procedure cand : inlineCandidates) {
-                            if (cand.getName().equals(fc.getName())) {
-                                inlineFunction(fc, cand);
+                        for (Procedure candidate : calledLeafProcedures) {
+                            if (candidate.getName().equals(call.getName())) {
+                                inlineFunction(call);
                                 break;
                             }
                         }
                     }
-
                 }
-                if (t instanceof ProcedureCall) {
-                    FunctionCall fc = ((ProcedureCall) t).getCallExpression();
 
-                    for (Procedure cand : inlineCandidates) {
-                        if (cand.getName().equals(fc.getName())) {
-                            inlineProcedure((ProcedureCall) t, cand);
+                if (transition instanceof ProcedureCall) {
+                    ProcedureCall call = (ProcedureCall) transition;
+
+                    for (Procedure candidate : calledLeafProcedures) {
+                        if (candidate.getName().equals(call.getCallExpression().getName())) {
+                            inlineProcedure(call);
                             break;
                         }
                     }
                 }
             }
         }
-
     }
 
+    public void inlineFunction(FunctionCall call) {
+        System.out.println("Inlining function call: " + call.toString());
+    }
+
+    public void inlineProcedure(ProcedureCall call) {
+        System.out.println("Inlining procedure call: " + call.toString());
+    }
 
     public static void main(String[] args) throws Exception {
-        CompilationUnit cu = petter.simplec.Compiler.parse(new File("input.c"));
+        CompilationUnit compilationUnit = petter.simplec.Compiler.parse(new File("examples/procedure.c"));
 
-        Optimization optimization = new Optimization(cu);
+        Optimization optimization = new Optimization(compilationUnit);
 
         optimization.inline();
-
     }
-
 }

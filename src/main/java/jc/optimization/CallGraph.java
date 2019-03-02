@@ -13,86 +13,129 @@ import java.util.*;
 public class CallGraph {
 
     static class Node {
-        public int staticCalls;
-        public Procedure procedure;
-        public Set<Node> calls;
+        private Procedure procedure;
+
+        // Nodes that call the procedure of this node.
+        private Set<Node> callers;
+
+        // Nodes whose procedure is called from this node.
+        private Set<Node> callees;
+
+        public Procedure getProcedure() {
+            return procedure;
+        }
+
+        public Set<Node> getCallers() {
+            return callers;
+        }
+
+        public Set<Node> getCallees() {
+            return callees;
+        }
 
         public boolean isLeaf() {
-            return calls.isEmpty();
+            return callees.isEmpty();
         }
     }
 
-    Map<Procedure, Node> nodes;
+    private Map<Procedure, Node> nodes;
+
+    public CallGraph(CompilationUnit compilationUnit) {
+        nodes = new HashMap<>();
+        createNodes(compilationUnit);
+        connectNodes(compilationUnit);
+    }
+
+    private void createNodes(CompilationUnit compilationUnit) {
+        for (Procedure procedure : compilationUnit) {
+            Node node = new Node();
+
+            node.procedure = procedure;
+            node.callers = new HashSet<>();
+            node.callees = new HashSet<>();
+
+            nodes.put(procedure, node);
+        }
+    }
+
+    private void connectNodes(CompilationUnit compilationUnit) {
+        for (Procedure procedure : compilationUnit) {
+            for (Transition transition : procedure.getTransitions()) {
+                if (transition instanceof GuardedTransition) {
+                    addCallFrom(procedure, ((GuardedTransition) transition).getAssertion());
+                }
+
+                if (transition instanceof Assignment) {
+                    Assignment assignment = (Assignment) transition;
+
+                    addCallFrom(procedure, assignment.getLhs());
+                    addCallFrom(procedure, assignment.getRhs());
+                }
+
+                if (transition instanceof ProcedureCall) {
+                    addCallFrom(procedure, ((ProcedureCall) transition).getCallExpression());
+                }
+            }
+        }
+    }
+
+    private void addCallFrom(Procedure procedure, FunctionCall call) {
+        Node callerNode = nodes.get(procedure);
+        Node calleeNode = findProcedureNode(call.getName());
+
+        assert calleeNode != null;
+
+        callerNode.callees.add(calleeNode);
+        calleeNode.callers.add(callerNode);
+    }
+
+    private void addCallFrom(Procedure procedure, Expression expression) {
+        CallCollector collector = new CallCollector();
+
+        Set<FunctionCall> calls = expression.accept(collector, Collections.emptySet()).orElse(Collections.emptySet());
+
+        for (FunctionCall call : calls) {
+            addCallFrom(procedure, call);
+        }
+    }
+
+    private Node findProcedureNode(String procedureName) {
+        for (Map.Entry<Procedure, Node> entry : nodes.entrySet()) {
+            if (entry.getKey().getName().equals(procedureName)) {
+                return entry.getValue();
+            }
+        }
+
+        // should be unreachable
+        return null;
+    }
+
+    public Node getNode(Procedure procedure) {
+        return nodes.get(procedure);
+    }
 
     public String toDot() {
-        StringBuilder b = new StringBuilder();
-        b.append("digraph CallGraph {\n");
+        StringBuilder dot = new StringBuilder("digraph CallGraph {\n");
 
-        nodes.forEach((p, n) ->
-                n.calls.forEach(target ->
-                        b.append(p.getName() + " -> " + target.procedure.getName() + ";\n")));
-
-        b.append("}\n");
-        return b.toString();
-    }
-
-    private void addCallFrom(FunctionCall call, Procedure p) {
-        Node n = nodes.get(p);
-        nodes.forEach((proc, node) -> {
-            // First-order approximation
-            // TODO: Should also check arity.
-            if (call.getName().equals(proc.getName())) {
-                node.staticCalls++;
-                n.calls.add(node);
-            }
-        });
-    }
-
-    private void addCallFrom(Expression e, Procedure p) {
-        CallCollector cc = new CallCollector();
-        Set<FunctionCall> fc = e.accept(cc, Collections.emptySet()).orElse(Collections.emptySet());
-        for (FunctionCall call : fc) {
-            addCallFrom(call, p);
-        }
-    }
-
-    public CallGraph(CompilationUnit cu) {
-        nodes = new HashMap<>();
-
-        for (Procedure p : cu) {
-            Node n = new Node();
-            n.procedure = p;
-            n.staticCalls = 0;
-            n.calls = new HashSet<>();
-            nodes.put(p, n);
-        }
-        for (Procedure p : cu) {
-            for (Transition t : p.getTransitions()) {
-                if (t instanceof GuardedTransition) {
-                    GuardedTransition gt = (GuardedTransition)t;
-                    addCallFrom(gt.getAssertion(), p);
-                }
-                if (t instanceof Assignment) {
-                    Assignment a = (Assignment)t;
-                    addCallFrom(a.getLhs(), p);
-                    addCallFrom(a.getRhs(), p);
-                }
-
-                if (t instanceof ProcedureCall) {
-                    ProcedureCall pc = (ProcedureCall)t;
-                    addCallFrom(pc.getCallExpression(), p);
-                }
+        for (Node caller : nodes.values()) {
+            for (Node callee : caller.callees) {
+                dot.append(caller.procedure.getName());
+                dot.append(" -> ");
+                dot.append(callee.procedure.getName());
+                dot.append(";\n");
             }
         }
-    }
 
+        dot.append("}\n");
+
+        return dot.toString();
+    }
 
     public static void main(String[] args) throws Exception {
-        CompilationUnit cu = petter.simplec.Compiler.parse(new File("input.c"));
+        CompilationUnit compilationUnit = petter.simplec.Compiler.parse(new File("examples/recursion.c"));
 
-        CallGraph cg = new CallGraph(cu);
+        CallGraph callGraph = new CallGraph(compilationUnit);
 
-        System.out.println(cg.toDot());
-
+        System.out.println(callGraph.toDot());
     }
 }

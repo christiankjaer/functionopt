@@ -52,6 +52,5 @@ public class ReachabilityAnalysis extends AbstractPropagatingVisitor<Boolean> {
         for (State s : foo.getStates()) {
             layout.highlight(s, ra.dataflowOf(s).toString());
         }
-
     }
 }
