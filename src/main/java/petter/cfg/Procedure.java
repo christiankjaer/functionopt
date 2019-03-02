@@ -167,10 +167,8 @@ public class Procedure implements java.io.Serializable,Analyzable{
             collectStates(states, t.getDest());
         }
     }
-    private Set<Transition> transen;
     public Set<Transition> getTransitions(){
-        if (transen!=null) return transen;
-        transen=new HashSet<>();
+        Set<Transition> transen=new HashSet<>();
         for (State s : states){
             for (Transition transe : s.getOut())
                 transen.add(transe);

@@ -1,10 +1,9 @@
 void procedure() {
-    // some side-effect
-    int answer = 42;
+    int side_effect = 1;
 }
 
 int main() {
     procedure();
 
-    return 0;
+    return 42;
 }

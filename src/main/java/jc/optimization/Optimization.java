@@ -1,8 +1,11 @@
 package jc.optimization;
 
 import petter.cfg.CompilationUnit;
+import petter.cfg.DotLayout;
 import petter.cfg.Procedure;
+import petter.cfg.State;
 import petter.cfg.edges.Assignment;
+import petter.cfg.edges.Nop;
 import petter.cfg.edges.ProcedureCall;
 import petter.cfg.edges.Transition;
 import petter.cfg.expression.FunctionCall;
@@ -43,7 +46,7 @@ public class Optimization {
 
                         for (Procedure candidate : calledLeafProcedures) {
                             if (candidate.getName().equals(call.getName())) {
-                                inlineFunction(call);
+                                inlineAssignment(assignment, call, procedure, candidate);
                                 break;
                             }
                         }
@@ -55,7 +58,7 @@ public class Optimization {
 
                     for (Procedure candidate : calledLeafProcedures) {
                         if (candidate.getName().equals(call.getCallExpression().getName())) {
-                            inlineProcedure(call);
+                            inlineProcedure(call, procedure, candidate);
                             break;
                         }
                     }
@@ -64,12 +67,49 @@ public class Optimization {
         }
     }
 
-    public void inlineFunction(FunctionCall call) {
-        System.out.println("Inlining function call: " + call.toString());
+    private void inlineAssignment(Assignment assignment, FunctionCall call, Procedure caller, Procedure callee) {
+        drawGraph(caller);
+
+        State callBegin = assignment.getSource();
+        State callEnd = assignment.getDest();
+
+        State calleeEnter = callee.getBegin();
+        State calleeExit = callee.getEnd();
+
+        // todo: mimic procedure inlining
+        // todo: rename callee's local variables in caller
+        // todo: use renamed callee result instead of the original expression
+
+        drawGraph(caller);
     }
 
-    public void inlineProcedure(ProcedureCall call) {
-        System.out.println("Inlining procedure call: " + call.toString());
+    private void inlineProcedure(ProcedureCall call, Procedure caller, Procedure callee) {
+        drawGraph(caller);
+
+        State callBegin = call.getSource();
+        State callEnd = call.getDest();
+
+        State calleeEnter = callee.getBegin();
+        State calleeExit = callee.getEnd();
+
+        // todo: rename callee's local variables in caller
+
+        // replace call with jumps
+        call.removeEdge();
+        new Nop(callBegin, calleeEnter);
+        new Nop(calleeExit, callEnd);
+
+        caller.refreshStates();
+
+        drawGraph(caller);
+    }
+
+    private static void drawGraph(Procedure procedure) {
+        try {
+            new DotLayout("png", "after.png").callDot(procedure);
+        } catch (Exception e) {
+            System.err.println("Could not create dot file.");
+        }
     }
 
     public static void main(String[] args) throws Exception {
