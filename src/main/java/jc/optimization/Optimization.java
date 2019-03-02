@@ -87,6 +87,8 @@ public class Optimization {
         drawGraph(caller, "caller");
         drawGraph(callee, "callee");
 
+        String variablePrefix = generatePrefix();
+
         State callBegin = call.getSource();
         State callEnd = call.getDest();
 
@@ -95,8 +97,19 @@ public class Optimization {
 
         call.removeEdge();
 
-        String prefix = generatePrefix();
+        callBegin = transformArgumentsToVariables(call, callee, callBegin, variablePrefix);
 
+        renameCalleeVariables(variablePrefix, calleeEnter);
+
+        new Nop(callBegin, calleeEnter);
+        new Nop(calleeExit, callEnd);
+
+        caller.refreshStates();
+
+        drawGraph(caller, "caller_inlined");
+    }
+
+    private State transformArgumentsToVariables(ProcedureCall call, Procedure callee, State callBegin, String prefix) {
         List<Expression> arguments = call.getCallExpression().getParamsUnchanged();
         List<String> parameters = callee
                 .getFormalParameters()
@@ -116,16 +129,13 @@ public class Optimization {
             callBegin = newCallBegin;
         }
 
-        RenamingVisitor visitor = new RenamingVisitor(prefix);
+        return callBegin;
+    }
+
+    private void renameCalleeVariables(String variablePrefix, State calleeEnter) {
+        RenamingVisitor visitor = new RenamingVisitor(variablePrefix);
         calleeEnter.forwardAccept(visitor, true);
         visitor.fullAnalysis();
-
-        new Nop(callBegin, calleeEnter);
-        new Nop(calleeExit, callEnd);
-
-        caller.refreshStates();
-
-        drawGraph(caller, "caller_inlined");
     }
 
     private String generatePrefix() {
