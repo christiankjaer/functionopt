@@ -1,11 +1,15 @@
-int f(int x) {
-    return x;
+int mul(int a, int b) {
+    int result = a * b;
+
+    return result;
 }
 
 int main() {
-    if (f(4) < 3) {
-        return 4;
+    int x = mul(21, 2);
+
+    if (x == 42) {
+        return 1;
     }
 
-    return 2;
+    return 0;
 }
