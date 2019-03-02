@@ -29,7 +29,11 @@ class RenamingExpressionVisitor extends DefaultUpDownDFS<Boolean> {
 
     @Override
     public Boolean postVisit(Variable s, Boolean fromParent) {
-        s.setName(prefix + s.getName());
+        String originalName = s.getName();
+
+        if (!originalName.startsWith(prefix)) {
+            s.setName(prefix + s.getName());
+        }
 
         return true;
     }
