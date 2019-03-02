@@ -1,7 +1,11 @@
-int f() {
-    return 42;
+int f(int x) {
+    return x;
 }
 
 int main() {
-    return f();
+    if (f(4) < 3) {
+        return 4;
+    }
+
+    return 2;
 }

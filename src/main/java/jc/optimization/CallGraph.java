@@ -6,6 +6,7 @@ import petter.cfg.edges.GuardedTransition;
 import petter.cfg.edges.ProcedureCall;
 import petter.cfg.edges.Transition;
 import petter.cfg.expression.*;
+import petter.simplec.Compiler;
 
 import java.io.File;
 import java.util.*;
@@ -132,7 +133,7 @@ public class CallGraph {
     }
 
     public static void main(String[] args) throws Exception {
-        CompilationUnit compilationUnit = petter.simplec.Compiler.parse(new File("examples/recursion.c"));
+        CompilationUnit compilationUnit = Compiler.parse(new File("examples/recursion.c"));
 
         CallGraph callGraph = new CallGraph(compilationUnit);
 
