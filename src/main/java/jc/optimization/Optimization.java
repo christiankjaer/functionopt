@@ -2,9 +2,12 @@ package jc.optimization;
 
 import petter.cfg.*;
 import petter.cfg.edges.*;
+import petter.cfg.expression.Expression;
 import petter.cfg.expression.FunctionCall;
+import petter.cfg.expression.Variable;
 
 import java.io.File;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -14,10 +17,14 @@ public class Optimization {
 
     CallGraph callGraph;
 
+    StringGenerator generator;
+
     public Optimization(CompilationUnit compilationUnit) {
         this.compilationUnit = compilationUnit;
 
         this.callGraph = new CallGraph(compilationUnit);
+
+        this.generator = new StringGenerator();
     }
 
     public void inline() {
@@ -71,7 +78,6 @@ public class Optimization {
         State calleeExit = callee.getEnd();
 
         // todo: mimic procedure inlining
-        // todo: rename callee's local variables in caller
         // todo: use renamed callee result instead of the original expression
 
         drawGraph(caller, "caller_inlined");
@@ -87,22 +93,43 @@ public class Optimization {
         State calleeEnter = callee.getBegin();
         State calleeExit = callee.getEnd();
 
-        StringGenerator generator = new StringGenerator();
-        String prefix = "__in_" + generator.generate(6) + "_";
+        call.removeEdge();
 
-        // todo: copy arguments
+        String prefix = generatePrefix();
+
+        List<Expression> arguments = call.getCallExpression().getParamsUnchanged();
+        List<String> parameters = callee
+                .getFormalParameters()
+                .stream()
+                .map(integer -> compilationUnit.getVariableName(integer))
+                .collect(Collectors.toList());
+
+        assert arguments.size() == parameters.size();
+
+        for (int i = 0; i < arguments.size(); i++) {
+            State newCallBegin = new State();
+
+            Expression argument = new Variable(1000, prefix + parameters.get(i), arguments.get(i).getType());
+
+            new Assignment(callBegin, newCallBegin, argument, arguments.get(i));
+
+            callBegin = newCallBegin;
+        }
 
         RenamingVisitor visitor = new RenamingVisitor(prefix);
         calleeEnter.forwardAccept(visitor, true);
         visitor.fullAnalysis();
 
-        call.removeEdge();
         new Nop(callBegin, calleeEnter);
         new Nop(calleeExit, callEnd);
 
         caller.refreshStates();
 
         drawGraph(caller, "caller_inlined");
+    }
+
+    private String generatePrefix() {
+        return "__in_" + generator.generate(6) + "_";
     }
 
     private static void drawGraph(Procedure procedure, String name) {

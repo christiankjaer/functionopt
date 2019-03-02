@@ -1,9 +1,9 @@
-void procedure() {
-    int side_effect = 1;
+void procedure(int parameter1, int parameter2) {
+    int side_effect = parameter1 * parameter2;
 }
 
 int main() {
-    procedure();
+    procedure(21, 2);
 
     return 42;
 }
