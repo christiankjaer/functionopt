@@ -12,8 +12,6 @@ import petter.simplec.Compiler;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 public class Optimization {
 
@@ -62,19 +60,18 @@ public class Optimization {
     }
 
     private void inlineProcedure(Transition trans, FunctionCall expr, Procedure caller, Procedure callee, String prefix) {
-        State callBegin = trans.getSource();
-        State callEnd = trans.getDest();
+        Tuple<State, State> call = new Tuple<>(trans.getSource(), trans.getDest());
 
         trans.removeEdge();
 
-        callBegin = transformArgumentsToVariables(expr, callee, callBegin, prefix);
+        call.first = inlineArguments(expr, callee, call.first, prefix);
 
         Tuple<State, State> copy = copyBody(callee);
 
-        renameCalleeVariables(prefix, copy.first);
+        prefixVariables(copy, prefix);
 
-        new Nop(callBegin, copy.first);
-        new Nop(copy.second, callEnd);
+        new Nop(call.first, copy.first);
+        new Nop(copy.second, call.second);
 
         caller.refreshStates();
     }
@@ -96,52 +93,45 @@ public class Optimization {
     }
 
     private void assignReturn(Assignment ass, Procedure caller, String prefix) {
-        State callEnd = ass.getDest();
+        Expression lhs = ass.getLhs();
+        Expression rhs = ass.getRhs();
 
-        List<Transition> incomings = StreamSupport.stream(callEnd.getIn().spliterator(), false).collect(Collectors.toList());
+        Tuple<State, State> call = new Tuple<>(ass.getSource(), ass.getDest());
 
-        assert incomings.size() == 1;
+        Transition incoming = Util.getIncoming(call.second);
 
-        Transition incoming = incomings.get(0);
+        State extra = new State();
 
-        State newCallEnd = new State();
+        incoming.setDest(extra);
 
-        incoming.setDest(newCallEnd);
-
-        Expression returnedVariable = new Variable(1001, prefix + "return", ass.getRhs().getType());
-
-        new Assignment(newCallEnd, callEnd, ass.getLhs(), returnedVariable);
+        new Assignment(extra, call.second, lhs, new Variable(1001, prefix + "return", rhs.getType()));
 
         caller.refreshStates();
     }
 
-    private State transformArgumentsToVariables(FunctionCall expr, Procedure callee, State callBegin, String prefix) {
-        List<Expression> arguments = expr.getParamsUnchanged();
-        List<String> parameters = callee
-                .getFormalParameters()
-                .stream()
-                .map(integer -> compilationUnit.getVariableName(integer))
-                .collect(Collectors.toList());
+    private State inlineArguments(FunctionCall call, Procedure callee, State callBegin, String prefix) {
+        List<String> parameters = Util.getParameterNames(callee, compilationUnit);
 
-        assert arguments.size() == parameters.size();
+        List<Expression> arguments = call.getParamsUnchanged();
 
-        for (int i = 0; i < arguments.size(); i++) {
-            State newCallBegin = new State();
+        for (Tuple<String, Expression> pair : Util.zip(parameters, arguments)) {
+            String name = pair.first;
+            Expression expr = pair.second;
 
-            Expression argument = new Variable(1000, prefix + parameters.get(i), arguments.get(i).getType());
+            State extra = new State();
 
-            new Assignment(callBegin, newCallBegin, argument, arguments.get(i));
+            new Assignment(callBegin, extra, new Variable(1000, prefix + name, expr.getType()), expr);
 
-            callBegin = newCallBegin;
+            callBegin = extra;
         }
 
         return callBegin;
     }
 
-    private void renameCalleeVariables(String prefix, State calleeEnter) {
+    private void prefixVariables(Tuple<State, State> body, String prefix) {
         RenamingVisitor visitor = new RenamingVisitor(prefix);
 
-        calleeEnter.forwardAccept(visitor, true);
+        body.first.forwardAccept(visitor, true);
 
         visitor.fullAnalysis();
     }
