@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Stream;
 
+// todo: see if it can merged with GatherCallsVisitor
 // Collects function calls from an expression.
 public class CallCollector extends DefaultUpDownDFS<Set<FunctionCall>> {
     @Override

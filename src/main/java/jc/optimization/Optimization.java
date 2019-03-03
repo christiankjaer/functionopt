@@ -10,6 +10,7 @@ import petter.cfg.expression.Variable;
 import petter.simplec.Compiler;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -20,14 +21,10 @@ public class Optimization {
 
     CallGraph callGraph;
 
-    StringGenerator generator;
-
     public Optimization(CompilationUnit compilationUnit) {
         this.compilationUnit = compilationUnit;
 
         this.callGraph = new CallGraph(compilationUnit);
-
-        this.generator = new StringGenerator();
     }
 
     public void inlineLeafFunctions() {
@@ -41,26 +38,26 @@ public class Optimization {
     }
 
     public void inlineCallsFromTo(Procedure caller, Procedure callee) {
-        GatherFunctionCallsVisitor visitor = new GatherFunctionCallsVisitor(callee);
+        GatherCallsVisitor visitor = new GatherCallsVisitor(callee);
         caller.forwardAccept(visitor, true);
         visitor.fullAnalysis();
 
         for (ProcedureCall procedureCall : visitor.getProcedureCalls()) {
-            drawGraph(caller, "caller");
-            drawGraph(callee, "callee");
+            Util.drawGraph(caller, "caller");
+            Util.drawGraph(callee, "callee");
 
             inlineProcedure(procedureCall, procedureCall.getCallExpression(), caller, callee, generatePrefix());
 
-            drawGraph(caller, "caller_inlined");
+            Util.drawGraph(caller, "caller_inlined");
         }
 
         for (Tuple<Assignment, FunctionCall> functionCall : visitor.getFunctionCalls()) {
-            drawGraph(caller, "caller");
-            drawGraph(callee, "callee");
+            Util.drawGraph(caller, "caller");
+            Util.drawGraph(callee, "callee");
 
             inlineFunction(functionCall.first, functionCall.second, caller, callee, generatePrefix());
 
-            drawGraph(caller, "caller_inlined");
+            Util.drawGraph(caller, "caller_inlined");
         }
     }
 
@@ -70,9 +67,12 @@ public class Optimization {
 
         trans.removeEdge();
 
-        // todo: copy the body instead, otherwise multiple calls to one function will fail
-        State calleeEnter = callee.getBegin();
-        State calleeExit = callee.getEnd();
+        CopyingVisitor copier = new CopyingVisitor(new ArrayList<>(callee.getTransitions()));
+        List<Transition> copiedBody = copier.getNewTransitions();
+        Tuple<State, State> copiedBeginEnd = Util.findBeginEnd(copiedBody);
+
+        State calleeEnter = copiedBeginEnd.first;
+        State calleeExit = copiedBeginEnd.second;
 
         callBegin = transformArgumentsToVariables(expr, callee, callBegin, prefix);
 
@@ -142,15 +142,7 @@ public class Optimization {
     }
 
     private String generatePrefix() {
-        return "__in_" + generator.generate(3) + "_";
-    }
-
-    private static void drawGraph(Procedure procedure, String name) {
-        try {
-            new DotLayout("png", name + ".png").callDot(procedure);
-        } catch (Exception e) {
-            System.err.println("Could not create dot file.");
-        }
+        return "__in_" + Util.randomString(3) + "_";
     }
 
     public static void main(String[] args) throws Exception {

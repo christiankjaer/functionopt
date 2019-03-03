@@ -12,31 +12,18 @@ import petter.cfg.expression.visitors.DefaultUpDownDFS;
 import java.util.*;
 import java.util.stream.Stream;
 
-class Tuple<T1, T2> {
+class GatherCallsVisitor extends AbstractPropagatingVisitor<Boolean> {
 
-    public T1 first;
-
-    public T2 second;
-
-    Tuple(T1 first, T2 second) {
-        this.first = first;
-
-        this.second = second;
-    }
-}
-
-class GatherFunctionCallsVisitor extends AbstractPropagatingVisitor<Boolean> {
-
-    GatherFunctionCallsExpressionVisitor expressionVisitor;
+    GatherCallsExprVisitor expressionVisitor;
 
     List<Tuple<Assignment, FunctionCall>> functionCalls;
 
     List<ProcedureCall> procedureCalls;
 
-    public GatherFunctionCallsVisitor(Procedure callee) {
+    public GatherCallsVisitor(Procedure callee) {
         super(true);
 
-        expressionVisitor = new GatherFunctionCallsExpressionVisitor(callee);
+        expressionVisitor = new GatherCallsExprVisitor(callee);
 
         functionCalls = new ArrayList<>();
 
@@ -80,39 +67,39 @@ class GatherFunctionCallsVisitor extends AbstractPropagatingVisitor<Boolean> {
 
         return true;
     }
-}
 
-class GatherFunctionCallsExpressionVisitor extends DefaultUpDownDFS<List<FunctionCall>> {
+    private class GatherCallsExprVisitor extends DefaultUpDownDFS<List<FunctionCall>> {
 
-    Procedure callee;
+        Procedure callee;
 
-    public GatherFunctionCallsExpressionVisitor(Procedure callee) {
-        this.callee = callee;
-    }
-
-    @Override
-    public List<FunctionCall> postVisit(FunctionCall call, List<FunctionCall> parent, Stream<List<FunctionCall>> children) {
-        List<FunctionCall> merged = new ArrayList<>();
-
-        if (call.getName().equals(callee.getName())) {
-            merged.add(call);
+        public GatherCallsExprVisitor(Procedure callee) {
+            this.callee = callee;
         }
 
-        // merge existing calls
-        merged.addAll(parent);
-        children.forEach(merged::addAll);
+        @Override
+        public List<FunctionCall> postVisit(FunctionCall call, List<FunctionCall> parent, Stream<List<FunctionCall>> children) {
+            List<FunctionCall> merged = new ArrayList<>();
 
-        return merged;
-    }
+            if (call.getName().equals(callee.getName())) {
+                merged.add(call);
+            }
 
-    // This is not specific to call gathering, just propagating results of sub-expressions...
-    @Override
-    public List<FunctionCall> postVisit(BinaryExpression expression, List<FunctionCall> lhs, List<FunctionCall> rhs) {
-        List<FunctionCall> merged = new ArrayList<>();
+            // merge existing calls
+            merged.addAll(parent);
+            children.forEach(merged::addAll);
 
-        merged.addAll(lhs);
-        merged.addAll(rhs);
+            return merged;
+        }
 
-        return merged;
+        // This is not specific to call gathering, just propagating results of sub-expressions...
+        @Override
+        public List<FunctionCall> postVisit(BinaryExpression expression, List<FunctionCall> lhs, List<FunctionCall> rhs) {
+            List<FunctionCall> merged = new ArrayList<>();
+
+            merged.addAll(lhs);
+            merged.addAll(rhs);
+
+            return merged;
+        }
     }
 }
