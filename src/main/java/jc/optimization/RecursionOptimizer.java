@@ -43,13 +43,13 @@ public class RecursionOptimizer {
             List<Tuple<Assignment, FunctionCall>> functionCalls = new FunctionCallGatheringVisitor(procedure, procedure).gather();
 
             for (ProcedureCall procedureCall : procedureCalls) {
-                if (isTailRecursive(procedureCall, procedure)) {
+                if (isTailRecursive(procedureCall, procedure, null)) {
                     eliminateProcedureRecursion(procedureCall, procedureCall.getCallExpression(), procedure);
                 }
             }
 
             for (Tuple<Assignment, FunctionCall> functionCall : functionCalls) {
-                if (isTailRecursive(functionCall.first, procedure)) {
+                if (isTailRecursive(functionCall.first, procedure, functionCall.first.getLhs())) {
                     eliminateProcedureRecursion(functionCall.first, functionCall.second, procedure);
                 }
             }
@@ -58,7 +58,7 @@ public class RecursionOptimizer {
         }
     }
 
-    private Boolean isTailRecursive(Transition transition, Procedure procedure) {
+    private Boolean isTailRecursive(Transition transition, Procedure procedure, Expression assignmentTarget) {
         State currentState = transition.getDest();
 
         Set<State> seen = new HashSet<>();
@@ -73,7 +73,7 @@ public class RecursionOptimizer {
 
             Transition outgoing = Util.getOutgoing(currentState);
 
-            if (!isNop(outgoing) && !isSimpleReturnAssignment(outgoing)) {
+            if (!isNop(outgoing) && !isSimpleReturnAssignment(outgoing, assignmentTarget)) {
                 return false;
             }
 
@@ -94,7 +94,7 @@ public class RecursionOptimizer {
         return transition instanceof Nop;
     }
 
-    private Boolean isSimpleReturnAssignment(Transition transition) {
+    private Boolean isSimpleReturnAssignment(Transition transition, Expression assignmentTarget) {
         if (!(transition instanceof Assignment)) {
             return false;
         }
@@ -113,8 +113,12 @@ public class RecursionOptimizer {
             return false;
         }
 
-        // todo: check that it's *the* variable we're assigning to after the *function* call
-        return assignment.getRhs() instanceof Variable;
+        if (assignmentTarget != null && assignment.getRhs() != assignmentTarget) {
+            // we have `return = ???`, where ??? is something else than direct result of the recursive function call
+            return false;
+        }
+
+        return true;
     }
 
     private void eliminateProcedureRecursion(Transition transition, FunctionCall call, Procedure procedure) {
