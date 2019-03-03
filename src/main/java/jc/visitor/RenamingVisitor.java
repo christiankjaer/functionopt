@@ -12,6 +12,7 @@ import petter.cfg.expression.visitors.DefaultUpDownDFS;
 
 import java.util.stream.Stream;
 
+// todo: do not rename global variables
 public class RenamingVisitor extends AbstractTransitionVisitor {
 
     ProcedureBody body;

@@ -1,17 +1,15 @@
-int foo(int x, int y) {
-    while (x < y) {
-        x = x + 1;
-    }
+int add(int x, int y) {
+    return x + y;
+}
 
-    return x;
+void proc(int z) {
+    int side_effect = z;
 }
 
 int main() {
-    int r = foo(10, 20);
+    int a = add(10, 20);
 
-    if (r != 20) {
-        return 1;
-    }
+    proc(a);
 
     return 0;
 }

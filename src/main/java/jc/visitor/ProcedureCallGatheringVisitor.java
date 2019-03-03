@@ -24,6 +24,8 @@ public class ProcedureCallGatheringVisitor extends AbstractTransitionVisitor {
     }
 
     public List<ProcedureCall> gather() {
+        visit(callerTransitions);
+
         return procedureCalls;
     }
 

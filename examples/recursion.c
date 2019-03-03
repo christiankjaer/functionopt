@@ -1,19 +1,19 @@
-int fib_impl(int n, int a, int b) {
-    if (n == 0) {
-        return a;
-    }
+void poll_n_times(int n) {
+    int polling = 1;
 
-    if (n == 1) {
-        return b;
+    if (n > 0) {
+        poll_n_times(n - 1);
     }
-
-    return fib_impl(n - 1, b, a + b);
 }
 
-int fib(int n) {
-    return fib_impl(n, 0, 1);
+int make_eq(int i, int j) {
+    if (i < j) {
+        return make_eq(i + 1, j);
+    }
+
+    return i;
 }
 
 int main() {
-    return fib(7);
+    return 0;
 }
