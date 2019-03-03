@@ -23,6 +23,16 @@ public class Util {
         return transition.get(0);
     }
 
+    public static Transition getOutgoing(State state) {
+        List<Transition> transitions = StreamSupport
+                .stream(state.getOut().spliterator(), false)
+                .collect(Collectors.toList());
+
+        assert transitions.size() == 1;
+
+        return transitions.get(0);
+    }
+
     public static List<String> getParameterNames(Procedure procedure, CompilationUnit compilationUnit) {
         return procedure
                 .getFormalParameters()

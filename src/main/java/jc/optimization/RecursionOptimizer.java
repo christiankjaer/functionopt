@@ -18,7 +18,9 @@ import petter.cfg.expression.Variable;
 import petter.simplec.Compiler;
 
 import java.io.File;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class RecursionOptimizer {
 
@@ -36,26 +38,83 @@ public class RecursionOptimizer {
         for (Procedure procedure : callGraph.getDirectlyRecursiveProcedures()) {
             Util.drawGraph(procedure, "recursive_" + procedure.getName());
 
-            // todo: check it is really *tail* recursive
-            // probably means that the call transition can have only
-            // Nop and Assignment (return = ???) edges before reaching the end state
-
-            System.out.println("Eliminating tail recursion in " + procedure.getName());
-
             List<ProcedureCall> procedureCalls = new ProcedureCallGatheringVisitor(procedure, procedure).gather();
 
             List<Tuple<Assignment, FunctionCall>> functionCalls = new FunctionCallGatheringVisitor(procedure, procedure).gather();
 
             for (ProcedureCall procedureCall : procedureCalls) {
-                eliminateProcedureRecursion(procedureCall, procedureCall.getCallExpression(), procedure);
+                if (isTailRecursive(procedureCall, procedure)) {
+                    eliminateProcedureRecursion(procedureCall, procedureCall.getCallExpression(), procedure);
+                }
             }
 
             for (Tuple<Assignment, FunctionCall> functionCall : functionCalls) {
-                eliminateProcedureRecursion(functionCall.first, functionCall.second, procedure);
+                if (isTailRecursive(functionCall.first, procedure)) {
+                    eliminateProcedureRecursion(functionCall.first, functionCall.second, procedure);
+                }
             }
 
             Util.drawGraph(procedure, "recursive_done_" + procedure.getName());
         }
+    }
+
+    private Boolean isTailRecursive(Transition transition, Procedure procedure) {
+        State currentState = transition.getDest();
+
+        Set<State> seen = new HashSet<>();
+
+        seen.add(currentState);
+
+        while (currentState != procedure.getEnd()) {
+            if (currentState.getOutDegree() > 1) {
+                // it's a branch
+                return false;
+            }
+
+            Transition outgoing = Util.getOutgoing(currentState);
+
+            if (!isNop(outgoing) && !isSimpleReturnAssignment(outgoing)) {
+                return false;
+            }
+
+            currentState = outgoing.getDest();
+
+            if (seen.contains(currentState)) {
+                // we detected a cycle
+                return false;
+            }
+
+            seen.add(currentState);
+        }
+
+        return true;
+    }
+
+    private Boolean isNop(Transition transition) {
+        return transition instanceof Nop;
+    }
+
+    private Boolean isSimpleReturnAssignment(Transition transition) {
+        if (!(transition instanceof Assignment)) {
+            return false;
+        }
+
+        Assignment assignment = (Assignment) transition;
+
+        Expression lhs = assignment.getLhs();
+
+        if (!(lhs instanceof Variable)) {
+            return false;
+        }
+
+        Variable variable = (Variable) lhs;
+
+        if (!variable.getName().equals("return")) {
+            return false;
+        }
+
+        // todo: check that it's *the* variable we're assigning to after the *function* call
+        return assignment.getRhs() instanceof Variable;
     }
 
     private void eliminateProcedureRecursion(Transition transition, FunctionCall call, Procedure procedure) {

@@ -11,6 +11,10 @@ int make_eq(int i, int j) {
         return make_eq(i + 1, j);
     }
 
+    if (i == j) {
+        return make_eq(i + 1, j) - 1;
+    }
+
     return i;
 }
 
