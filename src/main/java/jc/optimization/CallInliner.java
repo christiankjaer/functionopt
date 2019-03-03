@@ -20,13 +20,13 @@ import petter.simplec.Compiler;
 import java.io.File;
 import java.util.List;
 
-public class FunctionInliner {
+public class CallInliner {
 
     CompilationUnit compilationUnit;
 
     CallGraph callGraph;
 
-    public FunctionInliner(CompilationUnit compilationUnit) {
+    public CallInliner(CompilationUnit compilationUnit) {
         this.compilationUnit = compilationUnit;
 
         this.callGraph = new CallGraph(compilationUnit);
@@ -64,14 +64,14 @@ public class FunctionInliner {
     }
 
     private void inlineProcedure(Transition trans, FunctionCall expr, Procedure caller, Procedure callee, String prefix) {
+        ProcedureBody copy = copyBody(callee);
+
         State callBegin = trans.getSource();
         State callEnd = trans.getDest();
 
         trans.removeEdge();
 
         callBegin = inlineArguments(callBegin, expr, callee, prefix);
-
-        ProcedureBody copy = copyBody(callee);
 
         prefixVariables(copy, prefix);
 
@@ -142,7 +142,7 @@ public class FunctionInliner {
     public static void main(String[] args) throws Exception {
         CompilationUnit compilationUnit = Compiler.parse(new File("examples/function.c"));
 
-        FunctionInliner inliner = new FunctionInliner(compilationUnit);
+        CallInliner inliner = new CallInliner(compilationUnit);
 
         inliner.inlineLeafFunctions();
     }

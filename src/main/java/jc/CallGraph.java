@@ -154,7 +154,7 @@ public class CallGraph {
     }
 
     public static void main(String[] args) throws Exception {
-        CompilationUnit compilationUnit = Compiler.parse(new File("examples/recursion.c"));
+        CompilationUnit compilationUnit = Compiler.parse(new File("examples/tail_recursion.c"));
 
         CallGraph callGraph = new CallGraph(compilationUnit);
 

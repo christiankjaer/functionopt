@@ -58,6 +58,20 @@ public class RecursionOptimizer {
         }
     }
 
+    public void unrollRecursion(Integer limit) {
+        CallInliner inliner = new CallInliner(compilationUnit);
+
+        for (Procedure procedure : callGraph.getDirectlyRecursiveProcedures()) {
+            Util.drawGraph(procedure, "unrolling_" + procedure.getName());
+
+            for (Integer i = 0; i < limit; i += 1) {
+                inliner.inlineCallsFromTo(procedure, procedure);
+            }
+
+            Util.drawGraph(procedure, "unrolling_" + procedure.getName() + "_done");
+        }
+    }
+
     private Boolean isTailRecursive(Transition transition, Procedure procedure, Expression assignmentTarget) {
         State currentState = transition.getDest();
 
@@ -163,10 +177,12 @@ public class RecursionOptimizer {
     }
 
     public static void main(String[] args) throws Exception {
-        CompilationUnit compilationUnit = Compiler.parse(new File("examples/recursion.c"));
+        CompilationUnit compilationUnit = Compiler.parse(new File("examples/recursion_unrolling.c"));
 
         RecursionOptimizer optimizer = new RecursionOptimizer(compilationUnit);
 
         optimizer.eliminateTailRecursion();
+
+        optimizer.unrollRecursion(1);
     }
 }
