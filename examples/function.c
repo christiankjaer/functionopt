@@ -1,8 +1,4 @@
 int mul(int a, int b) {
-    if (a > 30) {
-        return b;
-    }
-
     int result = a * b;
 
     return result;

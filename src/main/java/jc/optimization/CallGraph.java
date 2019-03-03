@@ -10,6 +10,7 @@ import petter.simplec.Compiler;
 
 import java.io.File;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class CallGraph {
 
@@ -28,6 +29,10 @@ public class CallGraph {
 
         public Set<Node> getCallers() {
             return callers;
+        }
+
+        public Set<Procedure> getCallerProcedures() {
+            return callers.stream().map(Node::getProcedure).collect(Collectors.toSet());
         }
 
         public Set<Node> getCallees() {
@@ -80,7 +85,7 @@ public class CallGraph {
         }
     }
 
-    private void addCallFrom(Procedure procedure, FunctionCall call) {
+    private void addCallFrom(Procedure procedure, petter.cfg.expression.FunctionCall call) {
         Node callerNode = nodes.get(procedure);
         Node calleeNode = findProcedureNode(call.getName());
 
@@ -113,6 +118,14 @@ public class CallGraph {
 
     public Node getNode(Procedure procedure) {
         return nodes.get(procedure);
+    }
+
+    public Collection<Node> getNodes() {
+        return nodes.values();
+    }
+
+    public List<Node> getLeafNodes() {
+        return nodes.values().stream().filter(Node::isLeaf).collect(Collectors.toList());
     }
 
     public String toDot() {

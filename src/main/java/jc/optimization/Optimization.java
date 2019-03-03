@@ -1,5 +1,7 @@
 package jc.optimization;
 
+import jc.optimization.CallGraph.Node;
+
 import petter.cfg.*;
 import petter.cfg.edges.*;
 import petter.cfg.expression.Expression;
@@ -9,7 +11,6 @@ import petter.simplec.Compiler;
 
 import java.io.File;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -29,52 +30,67 @@ public class Optimization {
         this.generator = new StringGenerator();
     }
 
-    public void inline() {
-        for (Procedure procedure : compilationUnit) {
-            Set<Procedure> calledLeafProcedures = callGraph
-                    .getNode(procedure)
-                    .getCallees()
-                    .stream()
-                    .filter(CallGraph.Node::isLeaf)
-                    .map(CallGraph.Node::getProcedure)
-                    .collect(Collectors.toSet());
+    public void inlineLeafFunctions() {
+        for (Node leafNode : callGraph.getLeafNodes()) {
+            Procedure callee = leafNode.getProcedure();
 
-            for (Transition transition : procedure.getTransitions()) {
-                if (transition instanceof Assignment) {
-                    Assignment assignment = (Assignment) transition;
-
-                    if (assignment.getRhs() instanceof FunctionCall) {
-                        FunctionCall call = ((FunctionCall) assignment.getRhs());
-
-                        for (Procedure candidate : calledLeafProcedures) {
-                            if (candidate.getName().equals(call.getName())) {
-                                inlineFunction(assignment, call, procedure, candidate);
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                if (transition instanceof ProcedureCall) {
-                    FunctionCall callExpression = ((ProcedureCall) transition).getCallExpression();
-
-                    for (Procedure candidate : calledLeafProcedures) {
-                        if (candidate.getName().equals(callExpression.getName())) {
-                            inlineProcedure(transition, callExpression, procedure, candidate, generatePrefix());
-                            break;
-                        }
-                    }
-                }
+            for (Procedure caller : leafNode.getCallerProcedures()) {
+                inlineCallsFromTo(caller, callee);
             }
         }
     }
 
-    private void inlineFunction(Assignment assignment, FunctionCall call, Procedure caller, Procedure callee) {
-        String variablePrefix = generatePrefix();
+    public void inlineCallsFromTo(Procedure caller, Procedure callee) {
+        GatherFunctionCallsVisitor visitor = new GatherFunctionCallsVisitor();
+        caller.forwardAccept(visitor, true);
+        visitor.fullAnalysis();
 
-        inlineProcedure(assignment, call, caller, callee, variablePrefix);
+        for (ProcedureCall procedureCall : visitor.getProcedureCalls()) {
+            drawGraph(caller, "caller");
+            drawGraph(callee, "callee");
 
-        State callEnd = assignment.getDest();
+            inlineProcedure(procedureCall, procedureCall.getCallExpression(), caller, callee, generatePrefix());
+
+            drawGraph(caller, "caller_inlined");
+        }
+
+        for (Tuple<Assignment, FunctionCall> functionCall : visitor.getFunctionCalls()) {
+            drawGraph(caller, "caller");
+            drawGraph(callee, "callee");
+
+            inlineFunction(functionCall.first, functionCall.second, caller, callee, generatePrefix());
+
+            drawGraph(caller, "caller_inlined");
+        }
+    }
+
+    private void inlineProcedure(Transition trans, FunctionCall expr, Procedure caller, Procedure callee, String prefix) {
+        State callBegin = trans.getSource();
+        State callEnd = trans.getDest();
+
+        State calleeEnter = callee.getBegin();
+        State calleeExit = callee.getEnd();
+
+        trans.removeEdge();
+
+        callBegin = transformArgumentsToVariables(expr, callee, callBegin, prefix);
+
+        renameCalleeVariables(prefix, calleeEnter);
+
+        new Nop(callBegin, calleeEnter);
+        new Nop(calleeExit, callEnd);
+
+        caller.refreshStates();
+    }
+
+    private void inlineFunction(Assignment ass, FunctionCall call, Procedure caller, Procedure callee, String prefix) {
+        inlineProcedure(ass, call, caller, callee, prefix);
+
+        assignReturn(ass, caller, prefix);
+    }
+
+    private void assignReturn(Assignment ass, Procedure caller, String prefix) {
+        State callEnd = ass.getDest();
 
         List<Transition> incomings = StreamSupport.stream(callEnd.getIn().spliterator(), false).collect(Collectors.toList());
 
@@ -86,41 +102,15 @@ public class Optimization {
 
         incoming.setDest(newCallEnd);
 
-        Expression returnedVariable = new Variable(1001, variablePrefix + "return", assignment.getRhs().getType());
+        Expression returnedVariable = new Variable(1001, prefix + "return", ass.getRhs().getType());
 
-        new Assignment(newCallEnd, callEnd, assignment.getLhs(), returnedVariable);
-
-        caller.refreshStates();
-
-        drawGraph(caller, "caller_inlined");
-    }
-
-    private void inlineProcedure(Transition transition, FunctionCall expression, Procedure caller, Procedure callee, String variablePrefix) {
-        drawGraph(caller, "caller");
-        drawGraph(callee, "callee");
-
-        State callBegin = transition.getSource();
-        State callEnd = transition.getDest();
-
-        State calleeEnter = callee.getBegin();
-        State calleeExit = callee.getEnd();
-
-        transition.removeEdge();
-
-        callBegin = transformArgumentsToVariables(expression, callee, callBegin, variablePrefix);
-
-        renameCalleeVariables(variablePrefix, calleeEnter);
-
-        new Nop(callBegin, calleeEnter);
-        new Nop(calleeExit, callEnd);
+        new Assignment(newCallEnd, callEnd, ass.getLhs(), returnedVariable);
 
         caller.refreshStates();
-
-        drawGraph(caller, "caller_inlined");
     }
 
-    private State transformArgumentsToVariables(FunctionCall expression, Procedure callee, State callBegin, String prefix) {
-        List<Expression> arguments = expression.getParamsUnchanged();
+    private State transformArgumentsToVariables(FunctionCall expr, Procedure callee, State callBegin, String prefix) {
+        List<Expression> arguments = expr.getParamsUnchanged();
         List<String> parameters = callee
                 .getFormalParameters()
                 .stream()
@@ -142,9 +132,11 @@ public class Optimization {
         return callBegin;
     }
 
-    private void renameCalleeVariables(String variablePrefix, State calleeEnter) {
-        RenamingVisitor visitor = new RenamingVisitor(variablePrefix);
+    private void renameCalleeVariables(String prefix, State calleeEnter) {
+        RenamingVisitor visitor = new RenamingVisitor(prefix);
+
         calleeEnter.forwardAccept(visitor, true);
+
         visitor.fullAnalysis();
     }
 
@@ -165,6 +157,6 @@ public class Optimization {
 
         Optimization optimization = new Optimization(compilationUnit);
 
-        optimization.inline();
+        optimization.inlineLeafFunctions();
     }
 }
