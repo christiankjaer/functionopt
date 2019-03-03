@@ -85,7 +85,7 @@ public class RecursionOptimizer {
                 return false;
             }
 
-            Transition outgoing = Util.getOutgoing(currentState);
+            Transition outgoing = Util.getTheOnly(currentState.getOut());
 
             if (!isNop(outgoing) && !isSimpleReturnAssignment(outgoing, assignmentTarget)) {
                 return false;

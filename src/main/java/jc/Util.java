@@ -3,7 +3,6 @@ package jc;
 import petter.cfg.CompilationUnit;
 import petter.cfg.DotLayout;
 import petter.cfg.Procedure;
-import petter.cfg.State;
 import petter.cfg.edges.Transition;
 
 import java.util.ArrayList;
@@ -13,24 +12,12 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 public class Util {
-    public static Transition getIncoming(State state) {
-        List<Transition> transition = StreamSupport
-                .stream(state.getIn().spliterator(), false)
-                .collect(Collectors.toList());
+    public static Transition getTheOnly(Iterable<Transition> transitions) {
+        List<Transition> list = StreamSupport.stream(transitions.spliterator(), false).collect(Collectors.toList());
 
-        assert transition.size() == 1;
+        assert list.size() == 1;
 
-        return transition.get(0);
-    }
-
-    public static Transition getOutgoing(State state) {
-        List<Transition> transitions = StreamSupport
-                .stream(state.getOut().spliterator(), false)
-                .collect(Collectors.toList());
-
-        assert transitions.size() == 1;
-
-        return transitions.get(0);
+        return list.get(0);
     }
 
     public static List<String> getParameterNames(Procedure procedure, CompilationUnit compilationUnit) {

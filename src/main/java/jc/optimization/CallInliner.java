@@ -124,7 +124,7 @@ public class CallInliner {
 
         Tuple<State, State> call = new Tuple<>(ass.getSource(), ass.getDest());
 
-        Transition incoming = Util.getIncoming(call.second);
+        Transition incoming = Util.getTheOnly(call.second.getIn());
 
         State extra = new State();
 
