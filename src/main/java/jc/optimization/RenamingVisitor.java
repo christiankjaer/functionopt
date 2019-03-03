@@ -1,6 +1,5 @@
 package jc.optimization;
 
-import petter.cfg.AbstractPropagatingVisitor;
 import petter.cfg.edges.Assignment;
 import petter.cfg.edges.GuardedTransition;
 import petter.cfg.edges.ProcedureCall;
@@ -12,43 +11,43 @@ import petter.cfg.expression.visitors.DefaultUpDownDFS;
 
 import java.util.stream.Stream;
 
-class RenamingVisitor extends AbstractPropagatingVisitor<Boolean> {
+class RenamingVisitor extends AbstractTransitionVisitor {
+
+    ProcedureBody body;
 
     RenamingExpressionVisitor expressionVisitor;
 
-    public RenamingVisitor(String prefix) {
-        super(true);
+    public RenamingVisitor(ProcedureBody body, String prefix) {
+        this.body = body;
 
-        expressionVisitor = new RenamingExpressionVisitor(prefix);
+        this.expressionVisitor = new RenamingExpressionVisitor(prefix);
     }
 
     @Override
-    public Boolean visit(ProcedureCall ae, Boolean d) {
-        Expression expression = ae.getCallExpression();
-
-        expression.accept(expressionVisitor, true);
-
-        return true;
-    }
-
-    @Override
-    public Boolean visit(Assignment s, Boolean d) {
-        Expression left = s.getLhs();
-        Expression right = s.getRhs();
+    public void visit(Assignment assignment) {
+        Expression left = assignment.getLhs();
+        Expression right = assignment.getRhs();
 
         left.accept(expressionVisitor, true);
         right.accept(expressionVisitor, true);
-
-        return true;
     }
 
     @Override
-    public Boolean visit(GuardedTransition s, Boolean d) {
-        Expression assertion = s.getAssertion();
+    public void visit(GuardedTransition guard) {
+        Expression assertion = guard.getAssertion();
 
         assertion.accept(expressionVisitor, true);
+    }
 
-        return true;
+    @Override
+    public void visit(ProcedureCall call) {
+        Expression expression = call.getCallExpression();
+
+        expression.accept(expressionVisitor, true);
+    }
+
+    public void renameVariables() {
+        super.visit(body.getTransitions());
     }
 
     private class RenamingExpressionVisitor extends DefaultUpDownDFS<Boolean> {

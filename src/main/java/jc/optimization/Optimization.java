@@ -8,7 +8,6 @@ import petter.cfg.expression.Variable;
 import petter.simplec.Compiler;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.List;
 
 public class Optimization {
@@ -53,30 +52,25 @@ public class Optimization {
     }
 
     private void inlineProcedure(Transition trans, FunctionCall expr, Procedure caller, Procedure callee, String prefix) {
-        Tuple<State, State> call = new Tuple<>(trans.getSource(), trans.getDest());
+        State callBegin = trans.getSource();
+        State callEnd = trans.getDest();
 
         trans.removeEdge();
 
-        call.first = inlineArguments(expr, callee, call.first, prefix);
+        callBegin = inlineArguments(expr, callee, callBegin, prefix);
 
-        Tuple<State, State> copy = copyBody(callee);
+        ProcedureBody copy = copyBody(callee);
 
         prefixVariables(copy, prefix);
 
-        new Nop(call.first, copy.first);
-        new Nop(copy.second, call.second);
+        new Nop(callBegin, copy.getBegin());
+        new Nop(copy.getEnd(), callEnd);
 
         caller.refreshStates();
     }
 
-    private Tuple<State, State> copyBody(Procedure procedure) {
-        List<Transition> oldTransitions = new ArrayList<>(procedure.getTransitions());
-
-        CopyingVisitor copier = new CopyingVisitor(oldTransitions);
-
-        List<Transition> copiedBody = copier.getNewTransitions();
-
-        return Util.findBeginEnd(copiedBody);
+    private ProcedureBody copyBody(Procedure procedure) {
+        return new CopyingVisitor(procedure).copyBody();
     }
 
     private void inlineFunction(Assignment ass, FunctionCall call, Procedure caller, Procedure callee, String prefix) {
@@ -121,12 +115,8 @@ public class Optimization {
         return callBegin;
     }
 
-    private void prefixVariables(Tuple<State, State> body, String prefix) {
-        RenamingVisitor visitor = new RenamingVisitor(prefix);
-
-        body.first.forwardAccept(visitor, true);
-
-        visitor.fullAnalysis();
+    private void prefixVariables(ProcedureBody body, String prefix) {
+        new RenamingVisitor(body, prefix).renameVariables();
     }
 
     private String generatePrefix() {

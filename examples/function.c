@@ -1,25 +1,15 @@
-int mul(int a, int b) {
-    int result = a * b;
-
-    return result;
-}
-
-int max(int x, int y) {
-    if (x > y) {
-        return x;
+int foo(int x, int y) {
+    while (x < y) {
+        x = x + 1;
     }
 
-    return y;
+    return x;
 }
 
 int main() {
-    int i = mul(21, 2);
+    int r = foo(10, 20);
 
-    int j = max(42, i);
-
-    int k = max(j, 100);
-
-    if (k != 42) {
+    if (r != 20) {
         return 1;
     }
 

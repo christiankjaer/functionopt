@@ -1,5 +1,6 @@
 package jc.optimization;
 
+import petter.cfg.Procedure;
 import petter.cfg.State;
 import petter.cfg.edges.*;
 import petter.cfg.expression.*;
@@ -11,6 +12,8 @@ import java.util.stream.Stream;
 
 class CopyingVisitor extends AbstractTransitionVisitor {
 
+    Procedure procedure;
+
     List<Transition> oldTransitions;
 
     List<Transition> newTransitions;
@@ -19,8 +22,10 @@ class CopyingVisitor extends AbstractTransitionVisitor {
 
     CopyingExprVisitor exprVisitor;
 
-    CopyingVisitor(List<Transition> oldTransitions) {
-        this.oldTransitions = oldTransitions;
+    CopyingVisitor(Procedure procedure) {
+        this.procedure = procedure;
+
+        this.oldTransitions = new ArrayList<>(procedure.getTransitions());
 
         this.newTransitions = new ArrayList<>();
 
@@ -33,7 +38,7 @@ class CopyingVisitor extends AbstractTransitionVisitor {
     void visit(Assignment a) {
         Tuple<State, State> sd = getNewStates(a);
 
-        Assignment newAss = new Assignment(sd.first, sd.second, copy(a.getLhs()), copy(a.getRhs()));
+        Assignment newAss = new Assignment(sd.first, sd.second, copyExpr(a.getLhs()), copyExpr(a.getRhs()));
 
         this.newTransitions.add(newAss);
     }
@@ -42,7 +47,7 @@ class CopyingVisitor extends AbstractTransitionVisitor {
     void visit(GuardedTransition g) {
         Tuple<State, State> sd = getNewStates(g);
 
-        GuardedTransition newGuard = new GuardedTransition(sd.first, sd.second, copy(g.getAssertion()), g.getOperator());
+        GuardedTransition newGuard = new GuardedTransition(sd.first, sd.second, copyExpr(g.getAssertion()), g.getOperator());
 
         this.newTransitions.add(newGuard);
     }
@@ -60,15 +65,18 @@ class CopyingVisitor extends AbstractTransitionVisitor {
     void visit(ProcedureCall c) {
         Tuple<State, State> sd = getNewStates(c);
 
-        ProcedureCall newCall = new ProcedureCall(sd.first, sd.second, copy(c.getCallExpression()));
+        ProcedureCall newCall = new ProcedureCall(sd.first, sd.second, copyExpr(c.getCallExpression()));
 
         this.newTransitions.add(newCall);
     }
 
-    public List<Transition> getNewTransitions() {
+    public ProcedureBody copyBody() {
         super.visit(this.oldTransitions);
 
-        return newTransitions;
+        State newBegin = oldNewStates.get(procedure.getBegin());
+        State newEnd = oldNewStates.get(procedure.getEnd());
+
+        return new ProcedureBody(newTransitions, newBegin, newEnd);
     }
 
     private Tuple<State, State> getNewStates(Transition transition) {
@@ -82,7 +90,7 @@ class CopyingVisitor extends AbstractTransitionVisitor {
     }
 
     // todo: try to fix this mess
-    private <T extends Expression> T copy(T expr) {
+    private <T extends Expression> T copyExpr(T expr) {
         Optional<Expression> optCopied = expr.accept(exprVisitor, new UnknownExpression(expr.getType()));
 
         assert optCopied.isPresent();
