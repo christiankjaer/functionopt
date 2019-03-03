@@ -1,7 +1,5 @@
 package jc.optimization;
 
-import jc.optimization.CallGraph.Node;
-
 import petter.cfg.*;
 import petter.cfg.edges.*;
 import petter.cfg.expression.Expression;
@@ -26,11 +24,16 @@ public class Optimization {
     }
 
     public void inlineLeafFunctions() {
-        for (Node leafNode : callGraph.getLeafNodes()) {
+        for (CallGraph.Node leafNode : callGraph.getLeafNodes()) {
             Procedure callee = leafNode.getProcedure();
 
             for (Procedure caller : leafNode.getCallerProcedures()) {
+                Util.drawGraph(caller, "caller");
+                Util.drawGraph(callee, "callee");
+
                 inlineCallsFromTo(caller, callee);
+
+                Util.drawGraph(caller, "caller_inlined");
             }
         }
     }
@@ -41,21 +44,11 @@ public class Optimization {
         visitor.fullAnalysis();
 
         for (ProcedureCall procedureCall : visitor.getProcedureCalls()) {
-            Util.drawGraph(caller, "caller");
-            Util.drawGraph(callee, "callee");
-
             inlineProcedure(procedureCall, procedureCall.getCallExpression(), caller, callee, generatePrefix());
-
-            Util.drawGraph(caller, "caller_inlined");
         }
 
         for (Tuple<Assignment, FunctionCall> functionCall : visitor.getFunctionCalls()) {
-            Util.drawGraph(caller, "caller");
-            Util.drawGraph(callee, "callee");
-
             inlineFunction(functionCall.first, functionCall.second, caller, callee, generatePrefix());
-
-            Util.drawGraph(caller, "caller_inlined");
         }
     }
 

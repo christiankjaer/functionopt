@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 
 public class CallGraph {
 
-    static class Node {
+    public class Node {
         private Procedure procedure;
 
         // Nodes that call the procedure of this node.
