@@ -69,14 +69,13 @@ public class FunctionInliner {
 
         trans.removeEdge();
 
-        callBegin = inlineArguments(expr, callee, callBegin, prefix);
+        callBegin = inlineArguments(callBegin, expr, callee, prefix);
 
         ProcedureBody copy = copyBody(callee);
 
         prefixVariables(copy, prefix);
 
-        new Nop(callBegin, copy.getBegin());
-        new Nop(copy.getEnd(), callEnd);
+        insertJumpsToAndFrom(callBegin, callEnd, copy);
 
         caller.refreshStates();
     }
@@ -87,7 +86,7 @@ public class FunctionInliner {
         assignReturn(ass, caller, prefix);
     }
 
-    private State inlineArguments(FunctionCall call, Procedure callee, State callBegin, String prefix) {
+    private State inlineArguments(State callBegin, FunctionCall call, Procedure callee, String prefix) {
         List<String> parameters = Util.getParameterNames(callee, compilationUnit);
 
         List<Expression> arguments = call.getParamsUnchanged();
@@ -112,6 +111,11 @@ public class FunctionInliner {
 
     private void prefixVariables(ProcedureBody body, String prefix) {
         new RenamingVisitor(body, prefix).renameVariables();
+    }
+
+    private void insertJumpsToAndFrom(State callBegin, State callEnd, ProcedureBody copy) {
+        new Nop(callBegin, copy.getBegin());
+        new Nop(copy.getEnd(), callEnd);
     }
 
     private void assignReturn(Assignment ass, Procedure caller, String prefix) {
