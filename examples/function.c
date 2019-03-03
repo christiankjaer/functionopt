@@ -4,10 +4,22 @@ int mul(int a, int b) {
     return result;
 }
 
-int main() {
-    int x = mul(21, 2);
+int max(int x, int y) {
+    if (x > y) {
+        return x;
+    }
 
-    if (x == 42) {
+    return y;
+}
+
+int main() {
+    int i = mul(21, 2);
+
+    int j = max(42, i);
+
+    int k = max(j, 100);
+
+    if (k != 42) {
         return 1;
     }
 

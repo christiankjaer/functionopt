@@ -41,7 +41,7 @@ public class Optimization {
     }
 
     public void inlineCallsFromTo(Procedure caller, Procedure callee) {
-        GatherFunctionCallsVisitor visitor = new GatherFunctionCallsVisitor();
+        GatherFunctionCallsVisitor visitor = new GatherFunctionCallsVisitor(callee);
         caller.forwardAccept(visitor, true);
         visitor.fullAnalysis();
 

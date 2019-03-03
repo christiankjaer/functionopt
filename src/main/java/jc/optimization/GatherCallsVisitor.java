@@ -1,6 +1,7 @@
 package jc.optimization;
 
 import petter.cfg.AbstractPropagatingVisitor;
+import petter.cfg.Procedure;
 import petter.cfg.edges.Assignment;
 import petter.cfg.edges.ProcedureCall;
 import petter.cfg.expression.BinaryExpression;
@@ -32,10 +33,10 @@ class GatherFunctionCallsVisitor extends AbstractPropagatingVisitor<Boolean> {
 
     List<ProcedureCall> procedureCalls;
 
-    public GatherFunctionCallsVisitor() {
+    public GatherFunctionCallsVisitor(Procedure callee) {
         super(true);
 
-        expressionVisitor = new GatherFunctionCallsExpressionVisitor();
+        expressionVisitor = new GatherFunctionCallsExpressionVisitor(callee);
 
         functionCalls = new ArrayList<>();
 
@@ -82,11 +83,22 @@ class GatherFunctionCallsVisitor extends AbstractPropagatingVisitor<Boolean> {
 }
 
 class GatherFunctionCallsExpressionVisitor extends DefaultUpDownDFS<List<FunctionCall>> {
+
+    Procedure callee;
+
+    public GatherFunctionCallsExpressionVisitor(Procedure callee) {
+        this.callee = callee;
+    }
+
     @Override
     public List<FunctionCall> postVisit(FunctionCall call, List<FunctionCall> parent, Stream<List<FunctionCall>> children) {
         List<FunctionCall> merged = new ArrayList<>();
 
-        merged.add(call);
+        if (call.getName().equals(callee.getName())) {
+            merged.add(call);
+        }
+
+        // merge existing calls
         merged.addAll(parent);
         children.forEach(merged::addAll);
 
