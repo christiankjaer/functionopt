@@ -68,10 +68,11 @@ public class Optimization {
         State callBegin = trans.getSource();
         State callEnd = trans.getDest();
 
+        trans.removeEdge();
+
+        // todo: copy the body instead, otherwise multiple calls to one function will fail
         State calleeEnter = callee.getBegin();
         State calleeExit = callee.getEnd();
-
-        trans.removeEdge();
 
         callBegin = transformArgumentsToVariables(expr, callee, callBegin, prefix);
 
