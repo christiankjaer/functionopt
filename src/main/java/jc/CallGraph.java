@@ -1,4 +1,4 @@
-package jc.optimization;
+package jc;
 
 import petter.cfg.*;
 import petter.cfg.edges.Assignment;
@@ -39,7 +39,11 @@ public class CallGraph {
             return callees;
         }
 
-        public boolean isLeaf() {
+        public Boolean isRecursive() {
+            return callers.stream().filter(node -> node == this).count() == 1;
+        }
+
+        public Boolean isLeaf() {
             return callees.isEmpty();
         }
     }
@@ -126,6 +130,10 @@ public class CallGraph {
 
     public List<Node> getLeafNodes() {
         return nodes.values().stream().filter(Node::isLeaf).collect(Collectors.toList());
+    }
+
+    public List<Procedure> getDirectlyRecursiveProcedures() {
+        return nodes.values().stream().filter(Node::isRecursive).map(Node::getProcedure).collect(Collectors.toList());
     }
 
     public String toDot() {

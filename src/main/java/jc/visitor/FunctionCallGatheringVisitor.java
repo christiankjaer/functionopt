@@ -1,9 +1,9 @@
-package jc.optimization;
+package jc.visitor;
 
-import petter.cfg.AbstractPropagatingVisitor;
+import jc.Tuple;
 import petter.cfg.Procedure;
 import petter.cfg.edges.Assignment;
-import petter.cfg.edges.ProcedureCall;
+import petter.cfg.edges.Transition;
 import petter.cfg.expression.BinaryExpression;
 import petter.cfg.expression.Expression;
 import petter.cfg.expression.FunctionCall;
@@ -12,60 +12,48 @@ import petter.cfg.expression.visitors.DefaultUpDownDFS;
 import java.util.*;
 import java.util.stream.Stream;
 
-class GatherCallsVisitor extends AbstractPropagatingVisitor<Boolean> {
+public class FunctionCallGatheringVisitor extends AbstractTransitionVisitor {
+
+    List<Transition> callerTransitions;
 
     GatherCallsExprVisitor expressionVisitor;
 
     List<Tuple<Assignment, FunctionCall>> functionCalls;
 
-    List<ProcedureCall> procedureCalls;
 
-    public GatherCallsVisitor(Procedure callee) {
-        super(true);
+    public FunctionCallGatheringVisitor(Procedure caller, Procedure callee) {
+        callerTransitions = new ArrayList<>(caller.getTransitions());
 
         expressionVisitor = new GatherCallsExprVisitor(callee);
 
         functionCalls = new ArrayList<>();
-
-        procedureCalls = new ArrayList<>();
     }
 
-    public List<Tuple<Assignment, FunctionCall>> getFunctionCalls() {
+    public List<Tuple<Assignment, FunctionCall>> gather() {
+        visit(callerTransitions);
+
         return functionCalls;
     }
 
-    public List<ProcedureCall> getProcedureCalls() {
-        return procedureCalls;
-    }
-
     @Override
-    public Boolean visit(ProcedureCall procedureCall, Boolean d) {
-        procedureCalls.add(procedureCall);
-
-        return true;
-    }
-
-    @Override
-    public Boolean visit(Assignment assignment, Boolean d) {
+    public void visit(Assignment assignment) {
         Expression rhs = assignment.getRhs();
 
         Optional<List<FunctionCall>> optionalCalls = rhs.accept(expressionVisitor, new ArrayList<>());
 
         if (optionalCalls.isEmpty()) {
-            return true;
+            return;
         }
 
         List<FunctionCall> calls = optionalCalls.get();
 
         if (calls.isEmpty()) {
-            return true;
+            return;
         }
 
         FunctionCall call = calls.get(0);
 
         functionCalls.add(new Tuple<>(assignment, call));
-
-        return true;
     }
 
     private class GatherCallsExprVisitor extends DefaultUpDownDFS<List<FunctionCall>> {

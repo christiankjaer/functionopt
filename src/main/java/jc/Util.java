@@ -1,4 +1,4 @@
-package jc.optimization;
+package jc;
 
 import petter.cfg.CompilationUnit;
 import petter.cfg.DotLayout;
@@ -13,25 +13,6 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 public class Util {
-    public static Tuple<State, State> findBeginEnd(List<Transition> transitions) {
-        List<State> begins = transitions
-                .stream()
-                .map(Transition::getSource)
-                .filter(state -> state.getInDegree() == 0)
-                .collect(Collectors.toList());
-
-        List<State> ends = transitions
-                .stream()
-                .map(Transition::getDest)
-                .filter(state -> state.getOutDegree() == 0)
-                .collect(Collectors.toList());
-
-        assert !begins.isEmpty();
-        assert !ends.isEmpty();
-
-        return new Tuple<>(begins.get(0), ends.get(0));
-    }
-
     public static Transition getIncoming(State state) {
         List<Transition> transition = StreamSupport
                 .stream(state.getIn().spliterator(), false)

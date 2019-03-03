@@ -1,4 +1,4 @@
-package jc.optimization;
+package jc;
 
 import petter.cfg.State;
 import petter.cfg.edges.Transition;

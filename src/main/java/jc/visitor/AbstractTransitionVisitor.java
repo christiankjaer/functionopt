@@ -1,4 +1,4 @@
-package jc.optimization;
+package jc.visitor;
 
 import petter.cfg.edges.*;
 

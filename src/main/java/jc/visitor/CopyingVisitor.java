@@ -1,5 +1,7 @@
-package jc.optimization;
+package jc.visitor;
 
+import jc.ProcedureBody;
+import jc.Tuple;
 import petter.cfg.Procedure;
 import petter.cfg.State;
 import petter.cfg.edges.*;
@@ -10,7 +12,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-class CopyingVisitor extends AbstractTransitionVisitor {
+public class CopyingVisitor extends AbstractTransitionVisitor {
 
     Procedure procedure;
 
@@ -22,7 +24,7 @@ class CopyingVisitor extends AbstractTransitionVisitor {
 
     CopyingExprVisitor exprVisitor;
 
-    CopyingVisitor(Procedure procedure) {
+    public CopyingVisitor(Procedure procedure) {
         this.procedure = procedure;
 
         this.oldTransitions = new ArrayList<>(procedure.getTransitions());

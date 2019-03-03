@@ -1,4 +1,4 @@
-package jc.optimization;
+package jc;
 
 import petter.cfg.expression.BinaryExpression;
 import petter.cfg.expression.FunctionCall;
@@ -8,8 +8,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Stream;
 
-// todo: see if it can merged with GatherCallsVisitor
-// Collects function calls from an expression.
+// todo: consider merging with the other visitors
 public class CallCollector extends DefaultUpDownDFS<Set<FunctionCall>> {
     @Override
     public Set<FunctionCall> postVisit(FunctionCall m, Set<FunctionCall> s, Stream<Set<FunctionCall>> it) {

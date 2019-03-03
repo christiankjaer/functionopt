@@ -1,5 +1,6 @@
-package jc.optimization;
+package jc.visitor;
 
+import jc.ProcedureBody;
 import petter.cfg.edges.Assignment;
 import petter.cfg.edges.GuardedTransition;
 import petter.cfg.edges.ProcedureCall;
@@ -11,7 +12,7 @@ import petter.cfg.expression.visitors.DefaultUpDownDFS;
 
 import java.util.stream.Stream;
 
-class RenamingVisitor extends AbstractTransitionVisitor {
+public class RenamingVisitor extends AbstractTransitionVisitor {
 
     ProcedureBody body;
 
