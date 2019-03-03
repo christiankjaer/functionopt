@@ -10,13 +10,13 @@ import petter.simplec.Compiler;
 import java.io.File;
 import java.util.List;
 
-public class Optimization {
+public class Inliner {
 
     CompilationUnit compilationUnit;
 
     CallGraph callGraph;
 
-    public Optimization(CompilationUnit compilationUnit) {
+    public Inliner(CompilationUnit compilationUnit) {
         this.compilationUnit = compilationUnit;
 
         this.callGraph = new CallGraph(compilationUnit);
@@ -69,31 +69,10 @@ public class Optimization {
         caller.refreshStates();
     }
 
-    private ProcedureBody copyBody(Procedure procedure) {
-        return new CopyingVisitor(procedure).copyBody();
-    }
-
     private void inlineFunction(Assignment ass, FunctionCall call, Procedure caller, Procedure callee, String prefix) {
         inlineProcedure(ass, call, caller, callee, prefix);
 
         assignReturn(ass, caller, prefix);
-    }
-
-    private void assignReturn(Assignment ass, Procedure caller, String prefix) {
-        Expression lhs = ass.getLhs();
-        Expression rhs = ass.getRhs();
-
-        Tuple<State, State> call = new Tuple<>(ass.getSource(), ass.getDest());
-
-        Transition incoming = Util.getIncoming(call.second);
-
-        State extra = new State();
-
-        incoming.setDest(extra);
-
-        new Assignment(extra, call.second, lhs, new Variable(1001, prefix + "return", rhs.getType()));
-
-        caller.refreshStates();
     }
 
     private State inlineArguments(FunctionCall call, Procedure callee, State callBegin, String prefix) {
@@ -115,19 +94,40 @@ public class Optimization {
         return callBegin;
     }
 
+    private ProcedureBody copyBody(Procedure procedure) {
+        return new CopyingVisitor(procedure).copyBody();
+    }
+
     private void prefixVariables(ProcedureBody body, String prefix) {
         new RenamingVisitor(body, prefix).renameVariables();
     }
 
+    private void assignReturn(Assignment ass, Procedure caller, String prefix) {
+        Expression lhs = ass.getLhs();
+        Expression rhs = ass.getRhs();
+
+        Tuple<State, State> call = new Tuple<>(ass.getSource(), ass.getDest());
+
+        Transition incoming = Util.getIncoming(call.second);
+
+        State extra = new State();
+
+        incoming.setDest(extra);
+
+        new Assignment(extra, call.second, lhs, new Variable(1001, prefix + "return", rhs.getType()));
+
+        caller.refreshStates();
+    }
+
     private String generatePrefix() {
-        return "__in_" + Util.randomString(3) + "_";
+        return "__" + Util.randomString(3) + "_";
     }
 
     public static void main(String[] args) throws Exception {
         CompilationUnit compilationUnit = Compiler.parse(new File("examples/function.c"));
 
-        Optimization optimization = new Optimization(compilationUnit);
+        Inliner inliner = new Inliner(compilationUnit);
 
-        optimization.inlineLeafFunctions();
+        inliner.inlineLeafFunctions();
     }
 }
