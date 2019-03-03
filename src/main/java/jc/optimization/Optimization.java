@@ -67,21 +67,26 @@ public class Optimization {
 
         trans.removeEdge();
 
-        CopyingVisitor copier = new CopyingVisitor(new ArrayList<>(callee.getTransitions()));
-        List<Transition> copiedBody = copier.getNewTransitions();
-        Tuple<State, State> copiedBeginEnd = Util.findBeginEnd(copiedBody);
-
-        State calleeEnter = copiedBeginEnd.first;
-        State calleeExit = copiedBeginEnd.second;
-
         callBegin = transformArgumentsToVariables(expr, callee, callBegin, prefix);
 
-        renameCalleeVariables(prefix, calleeEnter);
+        Tuple<State, State> copy = copyBody(callee);
 
-        new Nop(callBegin, calleeEnter);
-        new Nop(calleeExit, callEnd);
+        renameCalleeVariables(prefix, copy.first);
+
+        new Nop(callBegin, copy.first);
+        new Nop(copy.second, callEnd);
 
         caller.refreshStates();
+    }
+
+    private Tuple<State, State> copyBody(Procedure procedure) {
+        List<Transition> oldTransitions = new ArrayList<>(procedure.getTransitions());
+
+        CopyingVisitor copier = new CopyingVisitor(oldTransitions);
+
+        List<Transition> copiedBody = copier.getNewTransitions();
+
+        return Util.findBeginEnd(copiedBody);
     }
 
     private void inlineFunction(Assignment ass, FunctionCall call, Procedure caller, Procedure callee, String prefix) {
