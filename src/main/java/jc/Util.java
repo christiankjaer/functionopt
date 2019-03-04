@@ -3,7 +3,6 @@ package jc;
 import petter.cfg.CompilationUnit;
 import petter.cfg.DotLayout;
 import petter.cfg.Procedure;
-import petter.cfg.edges.Transition;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,15 +10,24 @@ import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+/**
+ * Simple utility functions.
+ */
 public class Util {
-    public static Transition getTheOnly(Iterable<Transition> transitions) {
-        List<Transition> list = StreamSupport.stream(transitions.spliterator(), false).collect(Collectors.toList());
+    /**
+     * Ensures there is only one element in the provided iterable and returns it.
+     */
+    public static <T> T getTheOnly(Iterable<T> iterable) {
+        List<T> list = StreamSupport.stream(iterable.spliterator(), false).collect(Collectors.toList());
 
         assert list.size() == 1;
 
         return list.get(0);
     }
 
+    /**
+     * Returns parameter names of the given procedure.
+     */
     public static List<String> getParameterNames(Procedure procedure, CompilationUnit compilationUnit) {
         return procedure
                 .getFormalParameters()
@@ -28,6 +36,9 @@ public class Util {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Generates a random alphanumeric string of the given length.
+     */
     public static String randomString(Integer length) {
         Random random = new Random();
 
@@ -42,6 +53,9 @@ public class Util {
         return randomString.toString();
     }
 
+    /**
+     * Combines two lists to a single list of tuples.
+     */
     public static <T1, T2> List<Tuple<T1, T2>> zip(List<T1> first, List<T2> second) {
         assert first.size() == second.size();
 
@@ -54,6 +68,9 @@ public class Util {
         return both;
     }
 
+    /**
+     * Draws a CFG of the provided procedure to a file using dot.
+     */
     public static void drawCFG(Procedure procedure, String name) {
         try {
             new DotLayout("png", name + ".png").callDot(procedure);
@@ -62,6 +79,9 @@ public class Util {
         }
     }
 
+    /**
+     * Draws the provided call graph to a file using dot.
+     */
     public static void drawCallGraph(CallGraph callGraph, String name) {
         try {
             new DotLayout("png", name + ".png").callDot(callGraph);

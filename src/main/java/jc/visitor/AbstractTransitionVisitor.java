@@ -4,24 +4,27 @@ import petter.cfg.edges.*;
 
 import java.util.List;
 
+/**
+ * Visits all provided transitions in the given order.
+ */
 abstract class AbstractTransitionVisitor {
-    void visit(Assignment assignment) {
+    protected void visit(Assignment assignment) {
         //
     }
 
-    void visit(GuardedTransition guard) {
+    protected void visit(GuardedTransition guard) {
         //
     }
 
-    void visit(Nop nop) {
+    protected void visit(Nop nop) {
         //
     }
 
-    void visit(ProcedureCall call) {
+    protected void visit(ProcedureCall call) {
         //
     }
 
-    void visit(List<Transition> transitions) {
+    protected void visit(List<Transition> transitions) {
         for (Transition transition : transitions) {
             if (transition instanceof Assignment) {
                 visit((Assignment) transition);

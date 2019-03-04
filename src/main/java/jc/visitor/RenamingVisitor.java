@@ -13,6 +13,10 @@ import petter.cfg.expression.visitors.DefaultUpDownDFS;
 import java.util.stream.Stream;
 
 // todo: do not rename global variables
+
+/**
+ * Prefixes all variable names in the given procedure body with provided string.
+ */
 public class RenamingVisitor extends AbstractTransitionVisitor {
 
     ProcedureBody body;
@@ -25,8 +29,12 @@ public class RenamingVisitor extends AbstractTransitionVisitor {
         this.expressionVisitor = new RenamingExpressionVisitor(prefix);
     }
 
+    public void renameVariables() {
+        super.visit(body.getTransitions());
+    }
+
     @Override
-    public void visit(Assignment assignment) {
+    protected void visit(Assignment assignment) {
         Expression left = assignment.getLhs();
         Expression right = assignment.getRhs();
 
@@ -35,21 +43,17 @@ public class RenamingVisitor extends AbstractTransitionVisitor {
     }
 
     @Override
-    public void visit(GuardedTransition guard) {
+    protected void visit(GuardedTransition guard) {
         Expression assertion = guard.getAssertion();
 
         assertion.accept(expressionVisitor, true);
     }
 
     @Override
-    public void visit(ProcedureCall call) {
+    protected void visit(ProcedureCall call) {
         Expression expression = call.getCallExpression();
 
         expression.accept(expressionVisitor, true);
-    }
-
-    public void renameVariables() {
-        super.visit(body.getTransitions());
     }
 
     private class RenamingExpressionVisitor extends DefaultUpDownDFS<Boolean> {

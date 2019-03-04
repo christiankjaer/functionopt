@@ -12,17 +12,20 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * Copies the whole body (states, transitions, expression) of the provided procedure.
+ */
 public class CopyingVisitor extends AbstractTransitionVisitor {
 
-    Procedure procedure;
+    private Procedure procedure;
 
-    List<Transition> oldTransitions;
+    private List<Transition> oldTransitions;
 
-    List<Transition> newTransitions;
+    private List<Transition> newTransitions;
 
-    Map<State, State> oldNewStates;
+    private Map<State, State> oldNewStates;
 
-    CopyingExprVisitor exprVisitor;
+    private CopyingExprVisitor exprVisitor;
 
     public CopyingVisitor(Procedure procedure) {
         this.procedure = procedure;
@@ -36,8 +39,17 @@ public class CopyingVisitor extends AbstractTransitionVisitor {
         this.exprVisitor = new CopyingExprVisitor();
     }
 
+    public ProcedureBody copyBody() {
+        super.visit(this.oldTransitions);
+
+        State newBegin = oldNewStates.get(procedure.getBegin());
+        State newEnd = oldNewStates.get(procedure.getEnd());
+
+        return new ProcedureBody(newTransitions, newBegin, newEnd);
+    }
+
     @Override
-    void visit(Assignment a) {
+    protected void visit(Assignment a) {
         Tuple<State, State> sd = getNewStates(a);
 
         Assignment newAss = new Assignment(sd.first, sd.second, copyExpr(a.getLhs()), copyExpr(a.getRhs()));
@@ -46,7 +58,7 @@ public class CopyingVisitor extends AbstractTransitionVisitor {
     }
 
     @Override
-    void visit(GuardedTransition g) {
+    protected void visit(GuardedTransition g) {
         Tuple<State, State> sd = getNewStates(g);
 
         GuardedTransition newGuard = new GuardedTransition(sd.first, sd.second, copyExpr(g.getAssertion()), g.getOperator());
@@ -55,7 +67,7 @@ public class CopyingVisitor extends AbstractTransitionVisitor {
     }
 
     @Override
-    void visit(Nop n) {
+    protected void visit(Nop n) {
         Tuple<State, State> sd = getNewStates(n);
 
         Nop newNop = new Nop(sd.first, sd.second);
@@ -64,21 +76,12 @@ public class CopyingVisitor extends AbstractTransitionVisitor {
     }
 
     @Override
-    void visit(ProcedureCall c) {
+    protected void visit(ProcedureCall c) {
         Tuple<State, State> sd = getNewStates(c);
 
         ProcedureCall newCall = new ProcedureCall(sd.first, sd.second, copyExpr(c.getCallExpression()));
 
         this.newTransitions.add(newCall);
-    }
-
-    public ProcedureBody copyBody() {
-        super.visit(this.oldTransitions);
-
-        State newBegin = oldNewStates.get(procedure.getBegin());
-        State newEnd = oldNewStates.get(procedure.getEnd());
-
-        return new ProcedureBody(newTransitions, newBegin, newEnd);
     }
 
     private Tuple<State, State> getNewStates(Transition transition) {

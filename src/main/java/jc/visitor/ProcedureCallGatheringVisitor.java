@@ -7,6 +7,9 @@ import petter.cfg.edges.Transition;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Gathers all procedure calls in the given procedure.
+ */
 public class ProcedureCallGatheringVisitor extends AbstractTransitionVisitor {
 
     List<Transition> callerTransitions;
@@ -26,7 +29,7 @@ public class ProcedureCallGatheringVisitor extends AbstractTransitionVisitor {
     }
 
     @Override
-    public void visit(ProcedureCall procedureCall) {
+    protected void visit(ProcedureCall procedureCall) {
         procedureCalls.add(procedureCall);
     }
 }

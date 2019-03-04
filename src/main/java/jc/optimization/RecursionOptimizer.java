@@ -20,6 +20,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Optimizes recursive calls.
+ */
 public class RecursionOptimizer {
 
     CompilationUnit compilationUnit;
@@ -32,18 +35,25 @@ public class RecursionOptimizer {
         this.callGraph = callGraph;
     }
 
+    /**
+     * Eliminates all directly tail recursive calls in all procedures.
+     */
     public void eliminateTailRecursion() {
         for (Procedure procedure : callGraph.getDirectlyRecursive()) {
             callGraph.getProcedureCalls(procedure, procedure).stream()
                     .filter(call -> isTailRecursive(call, procedure, null))
-                    .forEach(call -> eliminateProcedureRecursion(call, call.getCallExpression(), procedure));
+                    .forEach(call -> eliminateTailRecursionImpl(call, call.getCallExpression(), procedure));
 
             callGraph.getFunctionCalls(procedure, procedure).stream()
                     .filter(call -> isTailRecursive(call.first, procedure, call.first.getLhs()))
-                    .forEach(call -> eliminateProcedureRecursion(call.first, call.second, procedure));
+                    .forEach(call -> eliminateTailRecursionImpl(call.first, call.second, procedure));
         }
     }
 
+    /**
+     * Unrolls all directly recursive calls (even non-tail calls) in all procedures.
+     * The limit controls the number of unrolling operations per single procedure.
+     */
     public void unrollRecursion(Integer limit) {
         CallInliner inliner = new CallInliner(compilationUnit);
 
@@ -54,7 +64,32 @@ public class RecursionOptimizer {
         }
     }
 
-    private Boolean isTailRecursive(Transition transition, Procedure procedure, Expression assignmentTarget) {
+    /**
+     * Eliminates the tail recursion by:
+     *  * assigning the call arguments to variables representing procedure parameters and
+     *  * jumping to the beginning of the procedure.
+     *  Assumes that the transition contains the call.
+     */
+    private void eliminateTailRecursionImpl(Transition transition, FunctionCall call, Procedure procedure) {
+        State callBegin = transition.getSource();
+
+        transition.removeEdge();
+
+        // todo: maybe? set locals to default values
+
+        callBegin = updateArguments(callBegin, call, procedure);
+
+        insertJumpToBeginning(callBegin, procedure);
+
+        procedure.refreshStates();
+    }
+
+    /**
+     * Determines whether the provided function/procedure call is tail recursive. (Assuming the transition is a call.)
+     * That means that the given transition reaches the end of the procedure with only Nop edges or edges that assign
+     * the call result to the "return" variable.
+     */
+    private Boolean isTailRecursive(Transition transition, Procedure procedure, Expression callResult) {
         State currentState = transition.getDest();
 
         Set<State> seen = new HashSet<>();
@@ -69,7 +104,7 @@ public class RecursionOptimizer {
 
             Transition outgoing = Util.getTheOnly(currentState.getOut());
 
-            if (!isNop(outgoing) && !isSimpleReturnAssignment(outgoing, assignmentTarget)) {
+            if (!isNop(outgoing) && !isSimpleReturnAssignment(outgoing, callResult)) {
                 return false;
             }
 
@@ -86,51 +121,10 @@ public class RecursionOptimizer {
         return true;
     }
 
-    private Boolean isNop(Transition transition) {
-        return transition instanceof Nop;
-    }
-
-    private Boolean isSimpleReturnAssignment(Transition transition, Expression assignmentTarget) {
-        if (!(transition instanceof Assignment)) {
-            return false;
-        }
-
-        Assignment assignment = (Assignment) transition;
-
-        Expression lhs = assignment.getLhs();
-
-        if (!(lhs instanceof Variable)) {
-            return false;
-        }
-
-        Variable variable = (Variable) lhs;
-
-        if (!variable.getName().equals("return")) {
-            return false;
-        }
-
-        if (assignmentTarget != null && assignment.getRhs() != assignmentTarget) {
-            // we have `return = ???`, where ??? is something else than direct result of the recursive function call
-            return false;
-        }
-
-        return true;
-    }
-
-    private void eliminateProcedureRecursion(Transition transition, FunctionCall call, Procedure procedure) {
-        State callBegin = transition.getSource();
-
-        transition.removeEdge();
-
-        // todo: maybe? set locals to default values
-
-        callBegin = updateArguments(callBegin, call, procedure);
-
-        insertJumpToBeginning(callBegin, procedure);
-
-        procedure.refreshStates();
-    }
-
+    /**
+     * Creates new assignments that update the procedure parameter variables with the call arguments.
+     * Returns a state that contains all of the new assignments and is therefore ready for the jump.
+     */
     private State updateArguments(State callBegin, FunctionCall call, Procedure procedure) {
         List<String> parameters = Util.getParameterNames(procedure, compilationUnit);
 
@@ -150,12 +144,51 @@ public class RecursionOptimizer {
         return callBegin;
     }
 
+    /**
+     * Creates a jump to the beginning of the given procedure.
+     */
     private void insertJumpToBeginning(State callBegin, Procedure procedure) {
         State procedureBegin = procedure.getBegin();
 
         new Nop(callBegin, procedureBegin);
 
         procedureBegin.setBegin(true);
+    }
+
+    /**
+     * Determines whether the transition is a Nop edge.
+     */
+    private Boolean isNop(Transition transition) {
+        return transition instanceof Nop;
+    }
+
+    /**
+     * Determines whether the transition is an assignment "return = callResult".
+     */
+    private Boolean isSimpleReturnAssignment(Transition transition, Expression callResult) {
+        if (callResult == null) {
+            return false;
+        }
+
+        if (!(transition instanceof Assignment)) {
+            return false;
+        }
+
+        Assignment assignment = (Assignment) transition;
+
+        Expression lhs = assignment.getLhs();
+
+        if (!(lhs instanceof Variable)) {
+            return false;
+        }
+
+        Variable variable = (Variable) lhs;
+
+        if (!variable.getName().equals("return")) {
+            return false;
+        }
+
+        return assignment.getRhs() == callResult;
     }
 
     public static void main(String[] args) throws Exception {

@@ -5,6 +5,9 @@ import petter.cfg.edges.Transition;
 
 import java.util.List;
 
+/**
+ * Represents the body (states, transitions, expressions) of a procedure.
+ */
 public class ProcedureBody {
 
     private List<Transition> transitions;

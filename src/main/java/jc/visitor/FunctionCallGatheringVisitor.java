@@ -14,6 +14,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+/**
+ * Gathers all function calls along with the corresponding assignment in the given procedure.
+ */
 public class FunctionCallGatheringVisitor extends AbstractTransitionVisitor {
 
     List<Transition> callerTransitions;
@@ -38,7 +41,7 @@ public class FunctionCallGatheringVisitor extends AbstractTransitionVisitor {
     }
 
     @Override
-    public void visit(Assignment assignment) {
+    protected void visit(Assignment assignment) {
         Expression rhs = assignment.getRhs();
 
         Optional<List<FunctionCall>> optionalCalls = rhs.accept(expressionVisitor, new ArrayList<>());
