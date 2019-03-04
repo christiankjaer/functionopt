@@ -205,14 +205,14 @@ public class CallGraph {
     }
 
     public static void main(String[] args) throws Exception {
-        String filename = "examples/inline_functions_0.c";
+        String filename = "call_graph.c";
 
-        File file = new File(filename);
+        File file = new File("examples/" + filename);
 
         CompilationUnit compilationUnit = Compiler.parse(file);
 
         CallGraph callGraph = new CallGraph(compilationUnit);
 
-        Util.drawCallGraph(callGraph, filename);
+        Util.drawCallGraph(callGraph, "graphs/" + filename);
     }
 }
