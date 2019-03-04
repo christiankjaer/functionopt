@@ -3,7 +3,7 @@ int branch(int a, int b) {
         return a;
     }
 
-    return a;
+    return b;
 }
 
 int main() {

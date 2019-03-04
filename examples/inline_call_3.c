@@ -7,7 +7,7 @@ int loop(int a, int b) {
 }
 
 int main() {
-    int a = loop(1, 2, 3);
+    int a = loop(1, 2);
 
     return 0;
 }
