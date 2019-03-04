@@ -124,7 +124,7 @@ public class CallInliner {
     }
 
     public static void main(String[] args) throws Exception {
-        String filename = "inline_functions_0.c";
+        String filename = "inline_call_0.c";
 
         File file = new File("examples/" + filename);
 

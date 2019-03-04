@@ -15,6 +15,7 @@ import petter.cfg.expression.Variable;
 import petter.simplec.Compiler;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -25,16 +26,14 @@ public class RecursionOptimizer {
 
     CallGraph callGraph;
 
-    public RecursionOptimizer(CompilationUnit compilationUnit) {
+    public RecursionOptimizer(CompilationUnit compilationUnit, CallGraph callGraph) {
         this.compilationUnit = compilationUnit;
 
-        this.callGraph = new CallGraph(compilationUnit);
+        this.callGraph = callGraph;
     }
 
     public void eliminateTailRecursion() {
         for (Procedure procedure : callGraph.getDirectlyRecursive()) {
-            Util.drawCFG(procedure, "tail_" + procedure.getName());
-
             callGraph.getProcedureCalls(procedure, procedure).stream()
                     .filter(call -> isTailRecursive(call, procedure, null))
                     .forEach(call -> eliminateProcedureRecursion(call, call.getCallExpression(), procedure));
@@ -42,8 +41,6 @@ public class RecursionOptimizer {
             callGraph.getFunctionCalls(procedure, procedure).stream()
                     .filter(call -> isTailRecursive(call.first, procedure, call.first.getLhs()))
                     .forEach(call -> eliminateProcedureRecursion(call.first, call.second, procedure));
-
-            Util.drawCFG(procedure, "tail_" + procedure.getName() + "_done");
         }
     }
 
@@ -51,13 +48,9 @@ public class RecursionOptimizer {
         CallInliner inliner = new CallInliner(compilationUnit);
 
         for (Procedure procedure : callGraph.getDirectlyRecursive()) {
-            Util.drawCFG(procedure, "unroll_" + procedure.getName());
-
             for (Integer i = 0; i < limit; i += 1) {
                 inliner.inlineCallsFromTo(procedure, procedure);
             }
-
-            Util.drawCFG(procedure, "unroll_" + procedure.getName() + "_done");
         }
     }
 
@@ -166,12 +159,24 @@ public class RecursionOptimizer {
     }
 
     public static void main(String[] args) throws Exception {
-        CompilationUnit compilationUnit = Compiler.parse(new File("examples/recursion_unrolling.c"));
+        String filename = "optimize_tail.c";
 
-        RecursionOptimizer optimizer = new RecursionOptimizer(compilationUnit);
+        File file = new File("examples/" + filename);
+
+        CompilationUnit compilationUnit = Compiler.parse(file);
+
+        CallGraph callGraph = new CallGraph(compilationUnit);
+
+        Procedure recursive = new ArrayList<>(callGraph.getDirectlyRecursive()).get(0);
+
+        Util.drawCFG(recursive, "graphs/" + filename);
+
+        RecursionOptimizer optimizer = new RecursionOptimizer(compilationUnit, callGraph);
 
         optimizer.eliminateTailRecursion();
 
         optimizer.unrollRecursion(1);
+
+        Util.drawCFG(recursive, "graphs/" + filename);
     }
 }
