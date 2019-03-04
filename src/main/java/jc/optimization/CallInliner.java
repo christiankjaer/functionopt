@@ -1,14 +1,10 @@
 package jc.optimization;
 
 import jc.CallGraph;
-import jc.CallGraph.Node;
-
 import jc.ProcedureBody;
 import jc.Tuple;
 import jc.Util;
 import jc.visitor.CopyingVisitor;
-import jc.visitor.FunctionCallGatheringVisitor;
-import jc.visitor.ProcedureCallGatheringVisitor;
 import jc.visitor.RenamingVisitor;
 import petter.cfg.*;
 import petter.cfg.edges.*;
@@ -20,6 +16,7 @@ import petter.simplec.Compiler;
 import java.io.File;
 import java.util.List;
 
+// todo: fix bug in example 4
 public class CallInliner {
 
     CompilationUnit compilationUnit;
@@ -33,34 +30,21 @@ public class CallInliner {
     }
 
     public void inlineLeafFunctions() {
-        for (Node leafNode : callGraph.getLeafNodes()) {
-            Procedure callee = leafNode.getProcedure();
+        // todo: abort if the callee is in a loop in the call graph
 
-            // todo: abort if the callee is in a loop in the call graph
-
-            for (Procedure caller : leafNode.getCallerProcedures()) {
-                Util.drawGraph(caller, "caller");
-                Util.drawGraph(callee, "callee");
-
+        for (Procedure callee : callGraph.getLeaves()) {
+            for (Procedure caller : callGraph.getCallers(callee)) {
                 inlineCallsFromTo(caller, callee);
-
-                Util.drawGraph(caller, "caller_inlined");
             }
         }
     }
 
     public void inlineCallsFromTo(Procedure caller, Procedure callee) {
-        List<ProcedureCall> procedureCalls = new ProcedureCallGatheringVisitor(caller, callee).gather();
+        callGraph.getProcedureCalls(caller, callee)
+                .forEach(call -> inlineProcedure(call, call.getCallExpression(), caller, callee, generatePrefix()));
 
-        List<Tuple<Assignment, FunctionCall>> functionCalls = new FunctionCallGatheringVisitor(caller, callee).gather();
-
-        for (ProcedureCall procedureCall : procedureCalls) {
-            inlineProcedure(procedureCall, procedureCall.getCallExpression(), caller, callee, generatePrefix());
-        }
-
-        for (Tuple<Assignment, FunctionCall> functionCall : functionCalls) {
-            inlineFunction(functionCall.first, functionCall.second, caller, callee, generatePrefix());
-        }
+        callGraph.getFunctionCalls(caller, callee)
+                .forEach(call -> inlineFunction(call.first, call.second, caller, callee, generatePrefix()));
     }
 
     private void inlineProcedure(Transition trans, FunctionCall expr, Procedure caller, Procedure callee, String prefix) {
@@ -140,10 +124,20 @@ public class CallInliner {
     }
 
     public static void main(String[] args) throws Exception {
-        CompilationUnit compilationUnit = Compiler.parse(new File("examples/function.c"));
+        String filename = "inline_functions_0.c";
+
+        File file = new File("examples/" + filename);
+
+        CompilationUnit compilationUnit = Compiler.parse(file);
+
+        Procedure main = compilationUnit.getProcedure("main");
+
+        Util.drawCFG(main, "graphs/" + filename + "_before");
 
         CallInliner inliner = new CallInliner(compilationUnit);
 
         inliner.inlineLeafFunctions();
+
+        Util.drawCFG(main, "graphs/" + filename + "_after");
     }
 }

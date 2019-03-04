@@ -9,7 +9,9 @@ import petter.cfg.expression.Expression;
 import petter.cfg.expression.FunctionCall;
 import petter.cfg.expression.visitors.DefaultUpDownDFS;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 public class FunctionCallGatheringVisitor extends AbstractTransitionVisitor {
@@ -21,10 +23,10 @@ public class FunctionCallGatheringVisitor extends AbstractTransitionVisitor {
     List<Tuple<Assignment, FunctionCall>> functionCalls;
 
 
-    public FunctionCallGatheringVisitor(Procedure caller, Procedure callee) {
+    public FunctionCallGatheringVisitor(Procedure caller) {
         callerTransitions = new ArrayList<>(caller.getTransitions());
 
-        expressionVisitor = new GatherCallsExprVisitor(callee);
+        expressionVisitor = new GatherCallsExprVisitor();
 
         functionCalls = new ArrayList<>();
     }
@@ -57,20 +59,11 @@ public class FunctionCallGatheringVisitor extends AbstractTransitionVisitor {
     }
 
     private class GatherCallsExprVisitor extends DefaultUpDownDFS<List<FunctionCall>> {
-
-        Procedure callee;
-
-        public GatherCallsExprVisitor(Procedure callee) {
-            this.callee = callee;
-        }
-
         @Override
         public List<FunctionCall> postVisit(FunctionCall call, List<FunctionCall> parent, Stream<List<FunctionCall>> children) {
             List<FunctionCall> merged = new ArrayList<>();
 
-            if (call.getName().equals(callee.getName())) {
-                merged.add(call);
-            }
+            merged.add(call);
 
             // merge existing calls
             merged.addAll(parent);

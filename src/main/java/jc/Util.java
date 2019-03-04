@@ -54,11 +54,19 @@ public class Util {
         return both;
     }
 
-    public static void drawGraph(Procedure procedure, String name) {
+    public static void drawCFG(Procedure procedure, String name) {
         try {
             new DotLayout("png", name + ".png").callDot(procedure);
         } catch (Exception e) {
-            System.err.println("Could not create dot file.");
+            System.err.println("Could not create CFG dot file.");
+        }
+    }
+
+    public static void drawCallGraph(CallGraph callGraph, String name) {
+        try {
+            new DotLayout("png", name + ".png").callDot(callGraph);
+        } catch (Exception e) {
+            System.err.println("Could not create CG dot file.");
         }
     }
 }

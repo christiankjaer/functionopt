@@ -9,15 +9,11 @@ import java.util.List;
 
 public class ProcedureCallGatheringVisitor extends AbstractTransitionVisitor {
 
-    Procedure callee;
-
     List<Transition> callerTransitions;
 
     List<ProcedureCall> procedureCalls;
 
-    public ProcedureCallGatheringVisitor(Procedure caller, Procedure callee) {
-        this.callee = callee;
-
+    public ProcedureCallGatheringVisitor(Procedure caller) {
         callerTransitions = new ArrayList<>(caller.getTransitions());
 
         procedureCalls = new ArrayList<>();
@@ -31,8 +27,6 @@ public class ProcedureCallGatheringVisitor extends AbstractTransitionVisitor {
 
     @Override
     public void visit(ProcedureCall procedureCall) {
-        if (procedureCall.getCallExpression().getName().equals(callee.getName())) {
-            procedureCalls.add(procedureCall);
-        }
+        procedureCalls.add(procedureCall);
     }
 }

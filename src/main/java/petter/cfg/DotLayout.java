@@ -8,8 +8,11 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+
+import jc.CallGraph;
 import petter.cfg.edges.Assignment;
 import petter.cfg.edges.GuardedTransition;
 import petter.cfg.edges.ProcedureCall;
@@ -39,7 +42,17 @@ public class DotLayout {
         pb.redirectErrorStream(true);
     }
 
+    public void callDot(CallGraph callGraph) throws InterruptedException, IOException {
+        Process dot = pb.start();
 
+        Writer w = new BufferedWriter(new OutputStreamWriter(dot.getOutputStream(), StandardCharsets.UTF_8));
+
+        w.write(callGraph.toDot());
+
+        w.close();
+
+        dot.waitFor();
+    }
 
     public void callDot(Procedure p)
             throws InterruptedException, IOException {

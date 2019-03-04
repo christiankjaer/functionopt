@@ -3,14 +3,11 @@ package jc.optimization;
 import jc.CallGraph;
 import jc.Tuple;
 import jc.Util;
-import jc.visitor.FunctionCallGatheringVisitor;
-import jc.visitor.ProcedureCallGatheringVisitor;
 import petter.cfg.CompilationUnit;
 import petter.cfg.Procedure;
 import petter.cfg.State;
 import petter.cfg.edges.Assignment;
 import petter.cfg.edges.Nop;
-import petter.cfg.edges.ProcedureCall;
 import petter.cfg.edges.Transition;
 import petter.cfg.expression.Expression;
 import petter.cfg.expression.FunctionCall;
@@ -35,40 +32,32 @@ public class RecursionOptimizer {
     }
 
     public void eliminateTailRecursion() {
-        for (Procedure procedure : callGraph.getDirectlyRecursiveProcedures()) {
-            Util.drawGraph(procedure, "recursive_" + procedure.getName());
+        for (Procedure procedure : callGraph.getDirectlyRecursive()) {
+            Util.drawCFG(procedure, "tail_" + procedure.getName());
 
-            List<ProcedureCall> procedureCalls = new ProcedureCallGatheringVisitor(procedure, procedure).gather();
+            callGraph.getProcedureCalls(procedure, procedure).stream()
+                    .filter(call -> isTailRecursive(call, procedure, null))
+                    .forEach(call -> eliminateProcedureRecursion(call, call.getCallExpression(), procedure));
 
-            List<Tuple<Assignment, FunctionCall>> functionCalls = new FunctionCallGatheringVisitor(procedure, procedure).gather();
+            callGraph.getFunctionCalls(procedure, procedure).stream()
+                    .filter(call -> isTailRecursive(call.first, procedure, call.first.getLhs()))
+                    .forEach(call -> eliminateProcedureRecursion(call.first, call.second, procedure));
 
-            for (ProcedureCall procedureCall : procedureCalls) {
-                if (isTailRecursive(procedureCall, procedure, null)) {
-                    eliminateProcedureRecursion(procedureCall, procedureCall.getCallExpression(), procedure);
-                }
-            }
-
-            for (Tuple<Assignment, FunctionCall> functionCall : functionCalls) {
-                if (isTailRecursive(functionCall.first, procedure, functionCall.first.getLhs())) {
-                    eliminateProcedureRecursion(functionCall.first, functionCall.second, procedure);
-                }
-            }
-
-            Util.drawGraph(procedure, "recursive_done_" + procedure.getName());
+            Util.drawCFG(procedure, "tail_" + procedure.getName() + "_done");
         }
     }
 
     public void unrollRecursion(Integer limit) {
         CallInliner inliner = new CallInliner(compilationUnit);
 
-        for (Procedure procedure : callGraph.getDirectlyRecursiveProcedures()) {
-            Util.drawGraph(procedure, "unrolling_" + procedure.getName());
+        for (Procedure procedure : callGraph.getDirectlyRecursive()) {
+            Util.drawCFG(procedure, "unroll_" + procedure.getName());
 
             for (Integer i = 0; i < limit; i += 1) {
                 inliner.inlineCallsFromTo(procedure, procedure);
             }
 
-            Util.drawGraph(procedure, "unrolling_" + procedure.getName() + "_done");
+            Util.drawCFG(procedure, "unroll_" + procedure.getName() + "_done");
         }
     }
 

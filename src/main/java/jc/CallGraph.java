@@ -1,11 +1,12 @@
 package jc;
 
-import petter.cfg.*;
+import jc.visitor.FunctionCallGatheringVisitor;
+import jc.visitor.ProcedureCallGatheringVisitor;
+import petter.cfg.CompilationUnit;
+import petter.cfg.Procedure;
 import petter.cfg.edges.Assignment;
-import petter.cfg.edges.GuardedTransition;
 import petter.cfg.edges.ProcedureCall;
-import petter.cfg.edges.Transition;
-import petter.cfg.expression.*;
+import petter.cfg.expression.FunctionCall;
 import petter.simplec.Compiler;
 
 import java.io.File;
@@ -13,137 +14,187 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class CallGraph {
+    private class N {
+        private CallGraph graph;
 
-    public class Node {
         private Procedure procedure;
 
-        // Nodes that call the procedure of this node.
-        private Set<Node> callers;
+        private Map<N, List<ProcedureCall>> inProcedureCalls;
 
-        // Nodes whose procedure is called from this node.
-        private Set<Node> callees;
+        private Map<N, List<Tuple<Assignment, FunctionCall>>> inFunctionCalls;
+
+        private List<ProcedureCall> outProcedureCalls;
+
+        private List<Tuple<Assignment, FunctionCall>> outFunctionCalls;
+
+        public N(Procedure procedure, CallGraph graph) {
+            this.graph = graph;
+            this.procedure = procedure;
+            this.inProcedureCalls = new HashMap<>();
+            this.inFunctionCalls = new HashMap<>();
+            this.outProcedureCalls = new ArrayList<>();
+            this.outFunctionCalls = new ArrayList<>();
+        }
+
+        public void addInProcedureCall(N caller, ProcedureCall procedureCall) {
+            this.inProcedureCalls.putIfAbsent(caller, new ArrayList<>());
+            this.inProcedureCalls.get(caller).add(procedureCall);
+        }
+
+        public void addInFunctionCall(N caller, Tuple<Assignment, FunctionCall> functionCall) {
+            this.inFunctionCalls.putIfAbsent(caller, new ArrayList<>());
+            this.inFunctionCalls.get(caller).add(functionCall);
+        }
+
+        public void addOutProcedureCalls(List<ProcedureCall> outProcedureCalls) {
+            this.outProcedureCalls.addAll(outProcedureCalls);
+        }
+
+        public void addOutFunctionCalls(List<Tuple<Assignment, FunctionCall>> outFunctionCalls) {
+            this.outFunctionCalls.addAll(outFunctionCalls);
+        }
 
         public Procedure getProcedure() {
             return procedure;
         }
 
-        public Set<Node> getCallers() {
+        public Set<Procedure> getCallees() {
+            Set<Procedure> procedures = new HashSet<>();
+
+            for (ProcedureCall procedureCall : outProcedureCalls) {
+                String calleeName = procedureCall.getCallExpression().getName();
+
+                Procedure callee = graph.proceduresNodes.get(calleeName).procedure;
+
+                procedures.add(callee);
+            }
+
+            for (Tuple<Assignment, FunctionCall> functionCall : outFunctionCalls) {
+                String calleeName = functionCall.second.getName();
+
+                Procedure callee = graph.proceduresNodes.get(calleeName).procedure;
+
+                procedures.add(callee);
+            }
+
+            return procedures;
+        }
+
+        public Set<Procedure> getCallers() {
+            Set<Procedure> callers = new HashSet<>();
+
+            Set<Procedure> procedureCallers = inProcedureCalls
+                    .keySet()
+                    .stream()
+                    .map(N::getProcedure)
+                    .collect(Collectors.toSet());
+
+            Set<Procedure> functionCallers = inFunctionCalls
+                    .keySet()
+                    .stream()
+                    .map(N::getProcedure)
+                    .collect(Collectors.toSet());
+
+            callers.addAll(procedureCallers);
+            callers.addAll(functionCallers);
+
             return callers;
         }
 
-        public Set<Procedure> getCallerProcedures() {
-            return callers.stream().map(Node::getProcedure).collect(Collectors.toSet());
+        public List<ProcedureCall> getProcedureCallsTo(Procedure callee) {
+            return outProcedureCalls
+                    .stream()
+                    .filter(procedureCall -> procedureCall.getCallExpression().getName().equals(callee.getName()))
+                    .collect(Collectors.toList());
         }
 
-        public Set<Node> getCallees() {
-            return callees;
-        }
-
-        public Boolean isRecursive() {
-            return callers.stream().filter(node -> node == this).count() == 1;
+        public List<Tuple<Assignment, FunctionCall>> getFunctionCallsTo(Procedure callee) {
+            return outFunctionCalls
+                    .stream()
+                    .filter(tuple -> tuple.second.getName().equals(callee.getName()))
+                    .collect(Collectors.toList());
         }
 
         public Boolean isLeaf() {
-            return callees.isEmpty();
+            return getCallees().isEmpty();
+        }
+
+        public Boolean isDirectlyRecursive() {
+            return getCallees().contains(procedure);
         }
     }
 
-    private Map<Procedure, Node> nodes;
+    private Map<String, N> proceduresNodes;
 
     public CallGraph(CompilationUnit compilationUnit) {
-        nodes = new HashMap<>();
-        createNodes(compilationUnit);
-        connectNodes(compilationUnit);
-    }
+        proceduresNodes = new HashMap<>();
 
-    private void createNodes(CompilationUnit compilationUnit) {
-        for (Procedure procedure : compilationUnit) {
-            Node node = new Node();
+        Map<String, Procedure> namesProcedures = compilationUnit.getProcedures();
 
-            node.procedure = procedure;
-            node.callers = new HashSet<>();
-            node.callees = new HashSet<>();
+        for (Procedure caller : namesProcedures.values()) {
+            proceduresNodes.putIfAbsent(caller.getName(), new N(caller, this));
+            N callerNode = proceduresNodes.get(caller.getName());
 
-            nodes.put(procedure, node);
-        }
-    }
+            List<ProcedureCall> procedureCalls = new ProcedureCallGatheringVisitor(caller).gather();
 
-    private void connectNodes(CompilationUnit compilationUnit) {
-        for (Procedure procedure : compilationUnit) {
-            for (Transition transition : procedure.getTransitions()) {
-                if (transition instanceof GuardedTransition) {
-                    addCallFrom(procedure, ((GuardedTransition) transition).getAssertion());
-                }
+            callerNode.addOutProcedureCalls(procedureCalls);
 
-                if (transition instanceof Assignment) {
-                    Assignment assignment = (Assignment) transition;
+            for (ProcedureCall procedureCall : procedureCalls) {
+                String calleeName = procedureCall.getCallExpression().getName();
 
-                    addCallFrom(procedure, assignment.getLhs());
-                    addCallFrom(procedure, assignment.getRhs());
-                }
+                Procedure callee = namesProcedures.get(calleeName);
 
-                if (transition instanceof ProcedureCall) {
-                    addCallFrom(procedure, ((ProcedureCall) transition).getCallExpression());
-                }
+                proceduresNodes.putIfAbsent(calleeName, new N(callee, this));
+                N calleeNode = proceduresNodes.get(calleeName);
+                calleeNode.addInProcedureCall(callerNode, procedureCall);
+            }
+
+            List<Tuple<Assignment, FunctionCall>> functionCalls = new FunctionCallGatheringVisitor(caller).gather();
+
+            callerNode.addOutFunctionCalls(functionCalls);
+
+            for (Tuple<Assignment, FunctionCall> functionCall : functionCalls) {
+                String calleeName = functionCall.second.getName();
+
+                Procedure callee = namesProcedures.get(calleeName);
+
+                proceduresNodes.putIfAbsent(calleeName, new N(callee, this));
+                N calleeNode = proceduresNodes.get(calleeName);
+                calleeNode.addInFunctionCall(callerNode, functionCall);
             }
         }
     }
 
-    private void addCallFrom(Procedure procedure, petter.cfg.expression.FunctionCall call) {
-        Node callerNode = nodes.get(procedure);
-        Node calleeNode = findProcedureNode(call.getName());
-
-        assert calleeNode != null;
-
-        callerNode.callees.add(calleeNode);
-        calleeNode.callers.add(callerNode);
+    public Set<Procedure> getLeaves() {
+        return proceduresNodes.values().stream().filter(N::isLeaf).map(N::getProcedure).collect(Collectors.toSet());
     }
 
-    private void addCallFrom(Procedure procedure, Expression expression) {
-        CallCollector collector = new CallCollector();
-
-        Set<FunctionCall> calls = expression.accept(collector, Collections.emptySet()).orElse(Collections.emptySet());
-
-        for (FunctionCall call : calls) {
-            addCallFrom(procedure, call);
-        }
+    public Set<Procedure> getCallers(Procedure callee) {
+        return proceduresNodes.get(callee.getName()).getCallers();
     }
 
-    private Node findProcedureNode(String procedureName) {
-        for (Map.Entry<Procedure, Node> entry : nodes.entrySet()) {
-            if (entry.getKey().getName().equals(procedureName)) {
-                return entry.getValue();
-            }
-        }
-
-        // should be unreachable
-        return null;
+    public Set<Procedure> getDirectlyRecursive() {
+        return proceduresNodes.values().stream().filter(N::isDirectlyRecursive).map(N::getProcedure).collect(Collectors.toSet());
     }
 
-    public Node getNode(Procedure procedure) {
-        return nodes.get(procedure);
+    public List<ProcedureCall> getProcedureCalls(Procedure from, Procedure to) {
+        return proceduresNodes.get(from.getName()).getProcedureCallsTo(to);
     }
 
-    public Collection<Node> getNodes() {
-        return nodes.values();
-    }
-
-    public List<Node> getLeafNodes() {
-        return nodes.values().stream().filter(Node::isLeaf).collect(Collectors.toList());
-    }
-
-    public List<Procedure> getDirectlyRecursiveProcedures() {
-        return nodes.values().stream().filter(Node::isRecursive).map(Node::getProcedure).collect(Collectors.toList());
+    public List<Tuple<Assignment, FunctionCall>> getFunctionCalls(Procedure from, Procedure to) {
+        return proceduresNodes.get(from.getName()).getFunctionCallsTo(to);
     }
 
     public String toDot() {
         StringBuilder dot = new StringBuilder("digraph CallGraph {\n");
 
-        for (Node caller : nodes.values()) {
-            for (Node callee : caller.callees) {
-                dot.append(caller.procedure.getName());
+        for (N callerNode : proceduresNodes.values()) {
+            Procedure caller = callerNode.procedure;
+
+            for (Procedure callee : callerNode.getCallees()) {
+                dot.append(caller.getName().replace('$', '_'));
                 dot.append(" -> ");
-                dot.append(callee.procedure.getName());
+                dot.append(callee.getName());
                 dot.append(";\n");
             }
         }
@@ -154,10 +205,14 @@ public class CallGraph {
     }
 
     public static void main(String[] args) throws Exception {
-        CompilationUnit compilationUnit = Compiler.parse(new File("examples/tail_recursion.c"));
+        String filename = "examples/inline_functions_0.c";
+
+        File file = new File(filename);
+
+        CompilationUnit compilationUnit = Compiler.parse(file);
 
         CallGraph callGraph = new CallGraph(compilationUnit);
 
-        System.out.println(callGraph.toDot());
+        Util.drawCallGraph(callGraph, filename);
     }
 }
