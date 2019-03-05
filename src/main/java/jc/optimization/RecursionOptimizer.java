@@ -12,10 +12,7 @@ import petter.cfg.edges.Transition;
 import petter.cfg.expression.Expression;
 import petter.cfg.expression.FunctionCall;
 import petter.cfg.expression.Variable;
-import petter.simplec.Compiler;
 
-import java.io.File;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -189,27 +186,5 @@ public class RecursionOptimizer {
         }
 
         return assignment.getRhs() == callResult;
-    }
-
-    public static void main(String[] args) throws Exception {
-        String filename = "optimize_tail.c";
-
-        File file = new File("examples/" + filename);
-
-        CompilationUnit compilationUnit = Compiler.parse(file);
-
-        CallGraph callGraph = new CallGraph(compilationUnit);
-
-        Procedure recursive = new ArrayList<>(callGraph.getDirectlyRecursive()).get(0);
-
-        Util.drawCFG(recursive, "graphs/" + filename);
-
-        RecursionOptimizer optimizer = new RecursionOptimizer(compilationUnit, callGraph);
-
-        optimizer.eliminateTailRecursion();
-
-        optimizer.unrollRecursion(1);
-
-        Util.drawCFG(recursive, "graphs/" + filename);
     }
 }

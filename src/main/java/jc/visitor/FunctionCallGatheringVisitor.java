@@ -46,7 +46,7 @@ public class FunctionCallGatheringVisitor extends AbstractTransitionVisitor {
 
         Optional<List<FunctionCall>> optionalCalls = rhs.accept(expressionVisitor, new ArrayList<>());
 
-        if (optionalCalls.isEmpty()) {
+        if (!optionalCalls.isPresent()) {
             return;
         }
 

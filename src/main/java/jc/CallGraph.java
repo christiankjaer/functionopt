@@ -7,9 +7,7 @@ import petter.cfg.Procedure;
 import petter.cfg.edges.Assignment;
 import petter.cfg.edges.ProcedureCall;
 import petter.cfg.expression.FunctionCall;
-import petter.simplec.Compiler;
 
-import java.io.File;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -289,17 +287,5 @@ public class CallGraph {
         public Boolean isDirectlyRecursive() {
             return getCallees().contains(procedure);
         }
-    }
-
-    public static void main(String[] args) throws Exception {
-        String filename = "call_graph.c";
-
-        File file = new File("examples/" + filename);
-
-        CompilationUnit compilationUnit = Compiler.parse(file);
-
-        CallGraph callGraph = new CallGraph(compilationUnit);
-
-        Util.drawCallGraph(callGraph, "graphs/" + filename);
     }
 }

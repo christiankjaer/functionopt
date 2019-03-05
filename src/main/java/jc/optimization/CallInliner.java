@@ -11,9 +11,7 @@ import petter.cfg.edges.*;
 import petter.cfg.expression.Expression;
 import petter.cfg.expression.FunctionCall;
 import petter.cfg.expression.Variable;
-import petter.simplec.Compiler;
 
-import java.io.File;
 import java.util.List;
 
 // todo: fix bug in example 4
@@ -158,23 +156,5 @@ public class CallInliner {
      */
     private String generatePrefix() {
         return "__" + Util.randomString(3) + "_";
-    }
-
-    public static void main(String[] args) throws Exception {
-        String filename = "inline_call_0.c";
-
-        File file = new File("examples/" + filename);
-
-        CompilationUnit compilationUnit = Compiler.parse(file);
-
-        Procedure main = compilationUnit.getProcedure("main");
-
-        Util.drawCFG(main, "graphs/" + filename + "_before");
-
-        CallInliner inliner = new CallInliner(compilationUnit);
-
-        inliner.inlineLeafFunctions();
-
-        Util.drawCFG(main, "graphs/" + filename + "_after");
     }
 }
