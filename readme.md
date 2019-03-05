@@ -2,8 +2,8 @@
 
 ## Build 
 
-    mvn clean compile assembly:single
+    mvn package
 
 ## Run
 
-    java -jar opt.jar
+    java -jar target/opt.jar
