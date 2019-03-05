@@ -25,6 +25,11 @@
       <artifactId>runtime</artifactId>
       <version>0.11b</version>
     </dependency>
+    <dependency>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli</artifactId>
+      <version>3.9.5</version>
+    </dependency>
   </dependencies>
 
   <build>

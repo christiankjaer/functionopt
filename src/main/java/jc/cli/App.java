@@ -11,90 +11,134 @@ import petter.simplec.Compiler;
 import java.io.File;
 import java.util.ArrayList;
 
-// todo: use PicoCLI to create proper CLI interface
-public class App {
-    public static void inline() throws Exception {
-        String filename = "inline_call_0.c";
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 
-        File file = new File("examples/" + filename);
+enum Analysis {
+    CallGraph, Inline, TailCall, Unroll
+}
 
-        CompilationUnit compilationUnit = Compiler.parse(file);
+@Command(name = "functionopt")
+public class App implements Runnable {
 
-        Procedure main = compilationUnit.getProcedure("main");
+    @Parameters(index = "0", type = Analysis.class)
+    private Analysis analysis;
 
-        Util.drawCFG(main, "graphs/" + filename + "_before");
+    @Parameters(index = "1")
+    private String sourceFile;
 
-        CallInliner inliner = new CallInliner(compilationUnit, 5, 10);
+    @Option(names = {"-cg", "--callgraph"})
+    private String callGraphName;
 
-        inliner.inlineLeafFunctions();
+    @Option(names = {"-b", "--before"})
+    private String beforeCFG;
 
-        Util.drawCFG(main, "graphs/" + filename + "_after");
-    }
+    @Option(names = {"-a", "--after"})
+    private String afterCFG;
 
-    public static void unrollRecursion() throws Exception {
-        String filename = "optimize_tail.c";
+    @Option(names = {"--inline-code-limit"}, description = "Size of largest procedure to inline")
+    private int inlineCodeSize = Integer.MAX_VALUE;
 
-        File file = new File("examples/" + filename);
+    @Option(names = {"--inline-call-limit"}, description = "Static call limit for inliner")
+    private int inlineCallLimit = Integer.MAX_VALUE;
 
-        CompilationUnit compilationUnit = Compiler.parse(file);
+    @Option(names = {"--recursion-unroll-limit"}, description = "Number of recursive calls to unroll")
+    private int recursionUnrollLimit = 1;
 
-        CallGraph callGraph = new CallGraph(compilationUnit);
 
-        Procedure recursive = new ArrayList<>(callGraph.getDirectlyRecursive()).get(0);
-
-        Util.drawCFG(recursive, "graphs/" + filename);
-
-        RecursionOptimizer optimizer = new RecursionOptimizer(compilationUnit, callGraph);
-
-        optimizer.eliminateTailRecursion();
-
-        optimizer.unrollRecursion(1);
-
-        Util.drawCFG(recursive, "graphs/" + filename);
-    }
-
-    public static void optimizeTailCall() throws Exception {
-        String filename = "optimize_tail.c";
-
-        File file = new File("examples/" + filename);
-
-        CompilationUnit compilationUnit = Compiler.parse(file);
-
-        CallGraph callGraph = new CallGraph(compilationUnit);
-
-        Procedure recursive = new ArrayList<>(callGraph.getDirectlyRecursive()).get(0);
-
-        Util.drawCFG(recursive, "graphs/" + filename);
-
-        RecursionOptimizer optimizer = new RecursionOptimizer(compilationUnit, callGraph);
-
-        optimizer.eliminateTailRecursion();
-
-        Util.drawCFG(recursive, "graphs/" + filename);
-    }
-
-    public static void createCallGraph() throws Exception {
-        String filename = "call_graph.c";
-
-        File file = new File("examples/" + filename);
-
-        CompilationUnit compilationUnit = Compiler.parse(file);
-
-        CallGraph callGraph = new CallGraph(compilationUnit);
-
-        Util.drawCallGraph(callGraph, "graphs/" + filename);
-    }
-
-    public static void main(String[] args) {
+    public void run()  {
         System.out.println("Running...");
 
         try {
-            inline();
-            unrollRecursion();
-            optimizeTailCall();
-            createCallGraph();
+            File source = new File(sourceFile);
+
+            CompilationUnit compilationUnit = Compiler.parse(source);
+
+            switch (analysis) {
+                case CallGraph:
+                    createCallGraph(compilationUnit);
+                    break;
+                case Inline:
+                    inline(compilationUnit);
+                    break;
+                case TailCall:
+                    optimizeTailCall(compilationUnit);
+                    break;
+                case Unroll:
+                    unrollRecursion(compilationUnit);
+                    break;
+            }
         } catch (Exception exception) {
             System.err.println("Oops, something went wrong.");
         }
+
+    }
+
+    private void inline(CompilationUnit compilationUnit) {
+
+        Procedure main = compilationUnit.getProcedure("main");
+
+        if (beforeCFG != null)
+            Util.drawCFG(main, beforeCFG);
+
+        System.out.println(inlineCallLimit);
+
+        CallInliner inliner = new CallInliner(compilationUnit, inlineCallLimit, inlineCodeSize);
+
+        inliner.inlineLeafFunctions();
+
+        if (afterCFG != null)
+            Util.drawCFG(main, afterCFG);
+    }
+
+    private void unrollRecursion(CompilationUnit compilationUnit) {
+
+        CallGraph callGraph = new CallGraph(compilationUnit);
+
+        Procedure recursive = new ArrayList<>(callGraph.getDirectlyRecursive()).get(0);
+
+        if (beforeCFG != null)
+            Util.drawCFG(recursive, beforeCFG);
+
+        RecursionOptimizer optimizer = new RecursionOptimizer(compilationUnit, callGraph);
+
+        optimizer.eliminateTailRecursion();
+
+        optimizer.unrollRecursion(recursionUnrollLimit);
+
+        if (afterCFG != null)
+            Util.drawCFG(recursive, afterCFG);
+    }
+
+    private void optimizeTailCall(CompilationUnit compilationUnit) {
+
+        CallGraph callGraph = new CallGraph(compilationUnit);
+
+        Procedure recursive = new ArrayList<>(callGraph.getDirectlyRecursive()).get(0);
+
+        if (beforeCFG != null)
+            Util.drawCFG(recursive, beforeCFG);
+
+        RecursionOptimizer optimizer = new RecursionOptimizer(compilationUnit, callGraph);
+
+        optimizer.eliminateTailRecursion();
+
+        if (afterCFG != null)
+            Util.drawCFG(recursive, afterCFG);
+    }
+
+    private void createCallGraph(CompilationUnit compilationUnit) throws Exception {
+
+        CallGraph callGraph = new CallGraph(compilationUnit);
+
+        if (callGraph != null)
+            Util.drawCallGraph(callGraph, callGraphName);
+    }
+
+    public static void main(String[] args) {
+        CommandLine.run(new App(), args);
+
     }
 }
