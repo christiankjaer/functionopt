@@ -52,7 +52,7 @@ public class RecursionOptimizer {
      * The limit controls the number of unrolling operations per single procedure.
      */
     public void unrollRecursion(Integer limit) {
-        CallInliner inliner = new CallInliner(compilationUnit, 0, 0);
+        CallInliner inliner = new CallInliner(compilationUnit, Integer.MAX_VALUE, Integer.MAX_VALUE);
 
         for (Procedure procedure : callGraph.getDirectlyRecursive()) {
             for (Integer i = 0; i < limit; i += 1) {
