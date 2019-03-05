@@ -20,22 +20,22 @@ enum Analysis {
     CallGraph, Inline, TailCall, Unroll
 }
 
-@Command(name = "functionopt")
+@Command(name = "opt")
 public class App implements Runnable {
 
-    @Parameters(index = "0", type = Analysis.class)
+    @Parameters(index = "0", type = Analysis.class, description = "Analysis and transformation to perform. One of CallGraph, Inline, TailCall and Unroll")
     private Analysis analysis;
 
-    @Parameters(index = "1")
+    @Parameters(index = "1", description = "Input source file to analyze")
     private String sourceFile;
 
-    @Option(names = {"-cg", "--callgraph"})
+    @Option(names = {"-cg", "--callgraph"}, description = "Name of output file for the call graph")
     private String callGraphName;
 
-    @Option(names = {"-b", "--before"})
+    @Option(names = {"-b", "--before"}, description = "Name of output file for the CFG before tranformation")
     private String beforeCFG;
 
-    @Option(names = {"-a", "--after"})
+    @Option(names = {"-a", "--after"}, description = "Name of output file for the CFG after tranformation")
     private String afterCFG;
 
     @Option(names = {"--inline-code-limit"}, description = "Size of largest procedure to inline")
@@ -55,10 +55,10 @@ public class App implements Runnable {
             File source = new File(sourceFile);
 
             CompilationUnit compilationUnit = Compiler.parse(source);
+            createCallGraph(compilationUnit);
 
             switch (analysis) {
                 case CallGraph:
-                    createCallGraph(compilationUnit);
                     break;
                 case Inline:
                     inline(compilationUnit);
