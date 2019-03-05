@@ -16,6 +16,14 @@
     <maven.compiler.target>1.8</maven.compiler.target>
   </properties>
 
+  <repositories>
+    <repository>
+      <id>local-repo</id>
+      <name>Local Repository</name>
+      <url>file:${basedir}/repository/</url>
+    </repository>
+  </repositories>
+
   <dependencies>
     <dependency>
       <groupId>java_cup</groupId>
@@ -57,6 +65,13 @@
         <plugin>
           <artifactId>maven-install-plugin</artifactId>
           <version>2.5.2</version>
+          <configuration>
+            <file>repository/java_cup/runtime/0.11b/runtime-0.11b.jar</file>
+            <groupId>java_cup</groupId>
+            <artifactId>runtime</artifactId>
+            <version>0.11b</version>
+            <packaging>jar</packaging>
+          </configuration>
         </plugin>
       </plugins>
     </pluginManagement>
