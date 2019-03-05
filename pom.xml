@@ -28,6 +28,21 @@
     <pluginManagement>
       <plugins>
         <plugin>
+          <artifactId>maven-assembly-plugin</artifactId>
+          <configuration>
+            <finalName>opt</finalName>
+            <archive>
+              <manifest>
+                <mainClass>jc.cli.App</mainClass>
+              </manifest>
+            </archive>
+            <descriptorRefs>
+              <descriptorRef>jar-with-dependencies</descriptorRef>
+            </descriptorRefs>
+            <appendAssemblyId>false</appendAssemblyId>
+          </configuration>
+        </plugin>
+        <plugin>
           <artifactId>maven-clean-plugin</artifactId>
           <version>3.1.0</version>
         </plugin>
@@ -38,17 +53,6 @@
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
           <version>3.8.0</version>
-        </plugin>
-        <plugin>
-          <artifactId>maven-jar-plugin</artifactId>
-          <version>3.0.2</version>
-          <configuration>
-            <archive>
-              <manifest>
-                <mainClass>jc.cli.App</mainClass>
-              </manifest>
-            </archive>
-          </configuration>
         </plugin>
         <plugin>
           <artifactId>maven-install-plugin</artifactId>
