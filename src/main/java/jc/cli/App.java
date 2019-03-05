@@ -24,7 +24,7 @@ public class App {
 
         Util.drawCFG(main, "graphs/" + filename + "_before");
 
-        CallInliner inliner = new CallInliner(compilationUnit);
+        CallInliner inliner = new CallInliner(compilationUnit, 5, 10);
 
         inliner.inlineLeafFunctions();
 

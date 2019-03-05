@@ -13,6 +13,8 @@ import petter.cfg.expression.FunctionCall;
 import petter.cfg.expression.Variable;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 // todo: fix bug in example 4
 
@@ -21,14 +23,45 @@ import java.util.List;
  */
 public class CallInliner {
 
-    CompilationUnit compilationUnit;
+    private final CompilationUnit compilationUnit;
 
-    CallGraph callGraph;
+    private final CallGraph callGraph;
 
-    public CallInliner(CompilationUnit compilationUnit) {
+    // Only procedures with fewer than this transitions
+    // should be inlined
+    private final int maxInlineSize;
+
+    // Only procedures with fewer than this number of calls
+    // should be inlined
+    private final int maxCallsToInline;
+
+    /***
+     *
+     * @param compilationUnit
+     * @param maxCallsToInline Procedures with more than this number of static calls
+     *                         will not be inlined.
+     * @param maxInlineSize Procedures with more than this number of transitions will
+     *                      not be inlined.
+     */
+    public CallInliner(CompilationUnit compilationUnit, int maxCallsToInline, int maxInlineSize) {
         this.compilationUnit = compilationUnit;
 
         this.callGraph = new CallGraph(compilationUnit);
+
+        // Set heuristic
+        this.maxCallsToInline = maxCallsToInline;
+        this.maxInlineSize = maxInlineSize;
+    }
+
+    /***
+     * Decides whether a procedure should be inlined given the
+     * heuristics the class is initialized with.
+     * @param p The procedure candidate for inlining
+     * @return true iff. the procedure should be inlined.
+     */
+    public boolean shouldInline(Procedure p) {
+        return p.getTransitions().size() <= maxInlineSize
+                && callGraph.getCallers(p).size() <= maxCallsToInline;
     }
 
     /**
@@ -37,7 +70,11 @@ public class CallInliner {
     public void inlineLeafFunctions() {
         // todo: abort if the callee is in a loop in the call graph
 
-        for (Procedure callee : callGraph.getLeaves()) {
+        // Filter with heuristic
+        Set<Procedure> toInline = callGraph.getLeaves().stream()
+                .filter(p -> shouldInline(p)).collect(Collectors.toSet());
+
+        for (Procedure callee : toInline) {
             for (Procedure caller : callGraph.getCallers(callee)) {
                 inlineCallsFromTo(caller, callee);
             }
@@ -59,6 +96,7 @@ public class CallInliner {
      * Inlines a simple procedure call. Copies the callee body while avoiding variable shadowing and prepares arguments.
      */
     private void inlineProcedure(Transition trans, FunctionCall expr, Procedure caller, Procedure callee, String prefix) {
+
         ProcedureBody copy = copyBody(callee);
 
         State callBegin = trans.getSource();
