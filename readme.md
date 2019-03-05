@@ -6,4 +6,4 @@
 
 ## Run
 
-    java -jar opt.jar
+    java -jar target/opt.jar
