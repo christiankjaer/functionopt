@@ -102,7 +102,13 @@ public class CallGraph {
     public String toDot() {
         StringBuilder dot = new StringBuilder("digraph CallGraph {\n");
 
-        for (Node callerNode : proceduresNodes.values()) {
+        List<Node> relevantNodes = proceduresNodes
+                .values()
+                .stream()
+                .filter(node -> !node.getProcedure().getName().equals("$init"))
+                .collect(Collectors.toList());
+
+        for (Node callerNode : relevantNodes) {
             Procedure caller = callerNode.procedure;
 
             for (Procedure callee : callerNode.getCallees()) {

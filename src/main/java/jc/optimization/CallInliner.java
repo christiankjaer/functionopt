@@ -27,58 +27,51 @@ public class CallInliner {
 
     private final CallGraph callGraph;
 
-    // Only procedures with fewer than this transitions
-    // should be inlined
-    private final int maxInlineSize;
-
-    // Only procedures with fewer than this number of calls
-    // should be inlined
-    private final int maxCallsToInline;
-
-    /***
-     *
-     * @param compilationUnit
-     * @param maxCallsToInline Procedures with more than this number of static calls
-     *                         will not be inlined.
-     * @param maxInlineSize Procedures with more than this number of transitions will
-     *                      not be inlined.
+    /**
+     * The maximum number of calls a function can receive to be inlined.
      */
-    public CallInliner(CompilationUnit compilationUnit, int maxCallsToInline, int maxInlineSize) {
+    private final int maxAllowedCalls;
+
+    /**
+     * The maximum number of transition a function can have to be inlined.
+     */
+    private final int maxAllowedSize;
+
+    public CallInliner(CompilationUnit compilationUnit, int maxAllowedCalls, int maxAllowedSize) {
         this.compilationUnit = compilationUnit;
 
         this.callGraph = new CallGraph(compilationUnit);
 
-        // Set heuristic
-        this.maxCallsToInline = maxCallsToInline;
-        this.maxInlineSize = maxInlineSize;
-    }
+        this.maxAllowedCalls = maxAllowedCalls;
 
-    /***
-     * Decides whether a procedure should be inlined given the
-     * heuristics the class is initialized with.
-     * @param p The procedure candidate for inlining
-     * @return true iff. the procedure should be inlined.
-     */
-    public boolean shouldInline(Procedure p) {
-        return p.getTransitions().size() <= maxInlineSize
-                && callGraph.getCallers(p).size() <= maxCallsToInline;
+        this.maxAllowedSize = maxAllowedSize;
     }
 
     /**
-     * Inlines all functions that do not call any other function.
+     * Inlines all leaf functions that satisfy the heuristics provided in constructor.
      */
     public void inlineLeafFunctions() {
         // todo: abort if the callee is in a loop in the call graph
 
         // Filter with heuristic
-        Set<Procedure> toInline = callGraph.getLeaves().stream()
-                .filter(p -> shouldInline(p)).collect(Collectors.toSet());
+        Set<Procedure> toInline = callGraph
+                .getLeaves()
+                .stream()
+                .filter(this::shouldInline)
+                .collect(Collectors.toSet());
 
         for (Procedure callee : toInline) {
             for (Procedure caller : callGraph.getCallers(callee)) {
                 inlineCallsFromTo(caller, callee);
             }
         }
+    }
+
+    /**
+     * Decides whether the given procedure should be inlined considering the heuristics provided in constructor.
+     */
+    private boolean shouldInline(Procedure p) {
+        return p.getTransitions().size() <= maxAllowedSize && callGraph.getCallers(p).size() <= maxAllowedCalls;
     }
 
     /**
@@ -108,7 +101,7 @@ public class CallInliner {
 
         prefixVariables(copy, prefix);
 
-        insertJumpsToAndFrom(callBegin, callEnd, copy);
+        insertTransitionsToAndFrom(callBegin, callEnd, copy);
 
         caller.refreshStates();
     }
@@ -125,7 +118,7 @@ public class CallInliner {
     /**
      * Creates new variable assignments that mimic argument passing during function call from the caller to the callee.
      * Assumes that local variables (including parameters) of the callee were prefixed with the given string.
-     * Returns a state that is guaranteed to have all arguments inlined - can be used for a jump from caller to callee.
+     * Returns a state that is guaranteed to have all arguments inlined - can be used for a transition from caller to callee.
      */
     private State inlineArguments(State callBegin, FunctionCall call, Procedure callee, String prefix) {
         List<String> parameters = Util.getParameterNames(callee, compilationUnit);
@@ -161,9 +154,9 @@ public class CallInliner {
     }
 
     /**
-     * Inserts jumps to and from the procedure body to mimic a function call.
+     * Inserts transitions to and from the procedure body to mimic a function call.
      */
-    private void insertJumpsToAndFrom(State callBegin, State callEnd, ProcedureBody copy) {
+    private void insertTransitionsToAndFrom(State callBegin, State callEnd, ProcedureBody copy) {
         new Nop(callBegin, copy.getBegin());
         new Nop(copy.getEnd(), callEnd);
     }

@@ -37,6 +37,18 @@ public class Util {
     }
 
     /**
+     * Returns all procedures that are relevant for our use-case.
+     */
+    public static List<Procedure> getRelevantProcedures(CompilationUnit compilationUnit) {
+        return compilationUnit
+                .getProcedures()
+                .values()
+                .stream()
+                .filter(procedure -> !procedure.getName().equals("$init"))
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Generates a random alphanumeric string of the given length.
      */
     public static String randomString(Integer length) {
@@ -84,7 +96,7 @@ public class Util {
      */
     public static void drawCallGraph(CallGraph callGraph, String name) {
         try {
-            new DotLayout("png", name + ".png").callDot(callGraph);
+            new DotLayout("png", name).callDot(callGraph);
         } catch (Exception e) {
             System.err.println("Could not create CG dot file.");
         }

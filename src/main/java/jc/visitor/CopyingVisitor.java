@@ -94,7 +94,7 @@ public class CopyingVisitor extends AbstractTransitionVisitor {
         return new Tuple<>(newSource, oldSource);
     }
 
-    // todo: try to fix this mess
+    // todo: try to make this prettier
     private <T extends Expression> T copyExpr(T expr) {
         Optional<Expression> optCopied = expr.accept(exprVisitor, new UnknownExpression(expr.getType()));
 

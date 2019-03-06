@@ -54,6 +54,7 @@ public class RecursionOptimizer {
     public void unrollRecursion(Integer limit) {
         CallInliner inliner = new CallInliner(compilationUnit, Integer.MAX_VALUE, Integer.MAX_VALUE);
 
+        // todo: this will effectively inline 2^limit times, we need to copy the original procedure here
         for (Procedure procedure : callGraph.getDirectlyRecursive()) {
             for (Integer i = 0; i < limit; i += 1) {
                 inliner.inlineCallsFromTo(procedure, procedure);
@@ -72,7 +73,7 @@ public class RecursionOptimizer {
 
         transition.removeEdge();
 
-        // todo: maybe? set locals to default values
+        // we don't need to set values of locals, as they are undefined by default according to the C standard
 
         callBegin = updateArguments(callBegin, call, procedure);
 
